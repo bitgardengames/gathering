@@ -1388,6 +1388,7 @@ function Gathering:SetupTrackingPage(page)
 	self:CreateCheckbox(LeftWidgets, "ignore-bop", L["Ignore Bind on Pickup"])
 	self:CreateCheckbox(LeftWidgets, "IgnoreMailItems", L["Ignore mail items"])
 	self:CreateCheckbox(LeftWidgets, "IgnoreMailMoney", L["Ignore mail gold"])
+	self:CreateCheckbox(LeftWidgets, "ShowTooltipData", L["Show tooltip data"], self.ToggleTooltipData)
 
 	self:SortWidgetsWide(TopWidgets)
 	self:SortWidgets(LeftWidgets)
@@ -1427,6 +1428,7 @@ function Gathering:SetupSettingsPage(page)
 
 	self:CreateCheckbox(RightWidgets, "hide-idle", L["Hide while idle"], self.ToggleTimerPanel)
 	self:CreateCheckbox(RightWidgets, "ShowTooltipHelp", L["Show tooltip help"])
+	self:CreateCheckbox(RightWidgets, "UseVendorValue", L["Use vendor price when market value is unavailable"])
 
 
 	self:CreateHeader(RightWidgets, L["Bag Slots"])
@@ -2013,21 +2015,62 @@ function Gathering:MODIFIER_STATE_CHANGED()
 	end
 end
 
-function Gathering:OnTooltipSetItem()
-	if (not Gathering.Settings["show-tooltip"]) then
+function Gathering.OnTooltipSetItem(tooltip, data)
+	if (not Gathering.Settings or not Gathering.Settings.ShowTooltipData) then
 		return
 	end
 
-	local Item, Link = self:GetItem()
+	local Link
 
-	if Item then
-		local Price = Gathering:GetPrice(Link)
+	if tooltip and tooltip.GetItem then
+		_, Link = tooltip:GetItem()
+	end
 
-		if (Price and Price > 0) then
-			self:AddLine(" ")
-			self:AddLine("|cffFFC44DGathering|r")
-			self:AddLine(format(L["Price per unit: %s"], Gathering:CopperToGold(Price)), 1, 1, 1)
-		end
+	if (not Link and data and data.hyperlink) then
+		Link = data.hyperlink
+	end
+
+	if (not Link) then
+		return
+	end
+
+	local Price, Source = Gathering:GetPrice(Link, data and data.id)
+
+	if (not Price or Price <= 0) then
+		return
+	end
+
+	tooltip:AddLine(" ")
+	tooltip:AddLine("|cffFFC44DGathering|r")
+
+	if (Source == "vendor") then
+		tooltip:AddLine(format(L["Vendor price per unit: %s"], Gathering:CopperToGold(Price)), 1, 1, 1)
+	else
+		tooltip:AddLine(format(L["Price per unit: %s"], Gathering:CopperToGold(Price)), 1, 1, 1)
+	end
+
+	tooltip:Show()
+end
+
+function Gathering:EnableTooltipData()
+	if self.TooltipDataHooked then
+		return
+	end
+
+	if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
+		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tt, data)
+			Gathering.OnTooltipSetItem(tt, data)
+		end)
+	else
+		GameTooltip:HookScript("OnTooltipSetItem", Gathering.OnTooltipSetItem)
+	end
+
+	self.TooltipDataHooked = true
+end
+
+function Gathering:ToggleTooltipData(value)
+	if value then
+		Gathering:EnableTooltipData()
 	end
 end
 
@@ -2045,17 +2088,15 @@ function Gathering:PLAYER_ENTERING_WORLD()
 			self.HasAuctionator = true
 		end
 
-		--[[if TooltipDataProcessor then
-			TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, self.OnTooltipSetItem)
-		else
-			GameTooltip:HookScript("OnTooltipSetItem", self.OnTooltipSetItem)
-		end]]
-
 		if (not GatheringSettings) then
 			GatheringSettings = {}
 		end
 
 		self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
+
+		if self.Settings.ShowTooltipData then
+			self:EnableTooltipData()
+		end
 
 		self:CreateWindow()
 
@@ -2108,7 +2149,7 @@ function Gathering:OnEnter()
 	self.MouseIsOver = true
 
 	local Now = GetTime()
-	local MarketTotal = 0
+	local ValueTotal = 0
 	local X, Y = self:GetCenter()
 	local ShiftDown = IsShiftKeyDown()
 	local Tooltip = self.Tooltip
@@ -2143,19 +2184,25 @@ function Gathering:OnEnter()
 					end
 				end
 
-				local Price = self:GetPrice(Link)
+				local Price, Source = self:GetPrice(Link, ID)
 
 				if Price then
-					MarketTotal = MarketTotal + (Price * Value.Collected)
+				ValueTotal = ValueTotal + (Price * Value.Collected)
 				end
 
 				if (ShiftDown and Price) then
-					Tooltip:AddDoubleLine(format("%s%s|r:", Hex, Name), format("%s (%s/%s)", Value.Collected, self:CopperToGold((Price * Value.Collected / max(Now - Value.Initial, 1)) * 60 * 60), L["Hr"]), 1, 1, 1, 1, 1, 1)
-				elseif IsControlKeyDown() then
-					Tooltip:AddDoubleLine(format("%s%s|r:", Hex, Name), format("%s (%s%%)", Value.Collected, floor((Value.Collected / TotalGathered * 100 + 0.05) * 10) / 10), 1, 1, 1, 1, 1, 1)
-				elseif IsAltKeyDown() then
-					Tooltip:AddDoubleLine(format("%s%s|r:", Hex, Name), format("%s %s", L["Recently Gathered: "], date("!%X", Now - Value.Last)), 1, 1, 1, 1, 1, 1)
-				else
+				local PerHour = self:CopperToGold((Price * Value.Collected / max(Now - Value.Initial, 1)) * 60 * 60)
+
+				if (Source == "vendor") then
+					PerHour = format("%s [%s]", PerHour, ITEM_VENDOR_PRICE)
+				end
+
+				Tooltip:AddDoubleLine(format("%s%s|r:", Hex, Name), format("%s (%s/%s)", Value.Collected, PerHour, L["Hr"]), 1, 1, 1, 1, 1, 1)
+			elseif IsControlKeyDown() then
+				Tooltip:AddDoubleLine(format("%s%s|r:", Hex, Name), format("%s (%s%%)", Value.Collected, floor((Value.Collected / TotalGathered * 100 + 0.05) * 10) / 10), 1, 1, 1, 1, 1, 1)
+			elseif IsAltKeyDown() then
+				Tooltip:AddDoubleLine(format("%s%s|r:", Hex, Name), format("%s %s", L["Recently Gathered: "], date("!%X", Now - Value.Last)), 1, 1, 1, 1, 1, 1)
+			else
 					Tooltip:AddDoubleLine(format("%s%s|r:", Hex, Name), format("%s (%s/%s)", Value.Collected, floor((Value.Collected / max(Now - Value.Initial, 1)) * 60 * 60), L["Hr"]), 1, 1, 1, 1, 1, 1)
 				end
 			end
@@ -2202,14 +2249,14 @@ function Gathering:OnEnter()
 
 		Tooltip:AddDoubleLine(L["Total Gathered:"], TotalGathered, nil, nil, nil, 1, 1, 1)
 
-		if (ShiftDown and MarketTotal > 0) then
-			Tooltip:AddDoubleLine(L["Total Average Per Hour:"], self:CopperToGold((MarketTotal / max(self.Seconds, 1)) * 60 * 60), nil, nil, nil, 1, 1, 1)
+		if (ShiftDown and ValueTotal > 0) then
+			Tooltip:AddDoubleLine(L["Total Average Per Hour:"], self:CopperToGold((ValueTotal / max(self.Seconds, 1)) * 60 * 60), nil, nil, nil, 1, 1, 1)
 		else
 			Tooltip:AddDoubleLine(L["Total Average Per Hour:"], self:Comma(floor(((TotalGathered / max(self.Seconds, 1)) * 60 * 60))), nil, nil, nil, 1, 1, 1)
 		end
 
-		if (MarketTotal > 0) then
-			Tooltip:AddDoubleLine(L["Total Value:"], self:CopperToGold(MarketTotal), nil, nil, nil, 1, 1, 1)
+		if (ValueTotal > 0) then
+			Tooltip:AddDoubleLine(L["Total Value:"], self:CopperToGold(ValueTotal), nil, nil, nil, 1, 1, 1)
 		end
 	end
 

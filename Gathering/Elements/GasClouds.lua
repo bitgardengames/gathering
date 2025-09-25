@@ -46,38 +46,36 @@ function Gathering:BAG_UPDATE_DELAYED()
 		local Quantity = Results[i][2]
 		local Type, SubType, _, _, _, _, ClassID, SubClassID, BindType = select(6, GetItemInfo(ID))
 
-		if (BindType and ((BindType ~= 0) and self.Settings["ignore-bop"])) then
-			return
-		end
+		if not (BindType and ((BindType ~= 0) and self.Settings["ignore-bop"])) then
+			if (not self.Gathered[SubType]) then
+				self.Gathered[SubType] = {}
+			end
 
-		if (not self.Gathered[SubType]) then
-			self.Gathered[SubType] = {}
-		end
+			local Now = GetTime()
 
-		local Now = GetTime()
+			if (not self.Gathered[SubType][ID]) then
+				self.Gathered[SubType][ID] = {Initial = Now}
+			end
 
-		if (not self.Gathered[SubType][ID]) then
-			self.Gathered[SubType][ID] = {Initial = Now}
-		end
+			local Info = self.Gathered[SubType][ID]
 
-		local Info = self.Gathered[SubType][ID]
+			Info.Collected = (Info.Collected or 0) + Quantity
+			Info.Last = Now
 
-		Info.Collected = (Info.Collected or 0) + Quantity
-		Info.Last = Now
+			self.TotalGathered = self.TotalGathered + Quantity -- For gathered/hr stat
 
-		self.TotalGathered = self.TotalGathered + Quantity -- For gathered/hr stat
+			if (self.Settings.DisplayMode == "TOTAL") then
+				self.Text:SetFormattedText(L["Total: %s"], self.TotalGathered)
+			end
 
-		if (self.Settings.DisplayMode == "TOTAL") then
-			self.Text:SetFormattedText(L["Total: %s"], self.TotalGathered)
-		end
+			if (not self:GetScript("OnUpdate")) then
+				self:StartTimer()
+			end
 
-		if (not self:GetScript("OnUpdate")) then
-			self:StartTimer()
-		end
-
-		if self.MouseIsOver then
-			self:OnLeave()
-			self:OnEnter()
+			if self.MouseIsOver then
+				self:OnLeave()
+				self:OnEnter()
+			end
 		end
 	end
 

@@ -81,11 +81,29 @@ function Gathering:CopperToGold(copper)
 	return String
 end
 
-function Gathering:GetPrice(link)
-	if self.HasTSM then
-		return TSM_API.GetCustomPriceValue("dbMarket", TSM_API.ToItemString(link))
-	elseif self.HasAuctionator then
-		return Auctionator.API.v1.GetAuctionPriceByItemLink("Gathering", link)
+function Gathering:GetPrice(link, id)
+	if self.HasTSM and link then
+		local Price = TSM_API.GetCustomPriceValue("dbMarket", TSM_API.ToItemString(link))
+
+		if Price and Price > 0 then
+			return Price, "market"
+		end
+	end
+
+	if self.HasAuctionator and link then
+		local Price = Auctionator.API.v1.GetAuctionPriceByItemLink("Gathering", link)
+
+		if Price and Price > 0 then
+			return Price, "market"
+		end
+	end
+
+	if self.Settings and self.Settings.UseVendorValue then
+		local VendorPrice = select(11, GetItemInfo(id or link))
+
+		if VendorPrice and VendorPrice > 0 then
+			return VendorPrice, "vendor"
+		end
 	end
 end
 
