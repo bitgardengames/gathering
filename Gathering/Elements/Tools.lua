@@ -108,28 +108,31 @@ function Gathering:GetPrice(link, id)
 end
 
 function Gathering:GetTrashValue()
-	local Profit = 0
+        local Profit = 0
 
-	for Bag = 0, 4 do
-		for Slot = 1, GetContainerNumSlots(Bag) do
-			local Link = GetContainerItemLink(Bag, Slot)
+        for Bag = 0, 4 do
+                local Slots = GetContainerNumSlots(Bag) or 0
 
-			if Link then
-				local Quality = select(3, GetItemInfo(Link)) -- Just list out the arguments as dummies and save the 2 select calls
-				local VendorPrice = select(11, GetItemInfo(Link))
-				local Count = GetContainerItemInfo(Bag, Slot).stackCount or 1
-				local TotalPrice = VendorPrice
+                for Slot = 1, Slots do
+                        local Link = GetContainerItemLink(Bag, Slot)
 
-				if ((VendorPrice and (VendorPrice > 0)) and Count) then
-					TotalPrice = VendorPrice * Count
-				end
+                        if Link then
+                                local _, _, Quality, _, _, _, _, _, _, _, VendorPrice = GetItemInfo(Link)
+                                local ItemInfo, Count = GetContainerItemInfo(Bag, Slot)
+                                local StackCount = 1
 
-				if ((Quality and Quality < 1) and TotalPrice > 0) then
-					Profit = Profit + TotalPrice
-				end
-			end
-		end
-	end
+                                if (type(ItemInfo) == "table") then
+                                        StackCount = ItemInfo.stackCount or ItemInfo.count or 1
+                                else
+                                        StackCount = Count or 1
+                                end
 
-	return Profit
+                                if ((Quality and Quality < 1) and VendorPrice and VendorPrice > 0) then
+                                        Profit = Profit + (VendorPrice * StackCount)
+                                end
+                        end
+                end
+        end
+
+        return Profit
 end

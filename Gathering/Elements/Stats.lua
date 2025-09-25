@@ -5,20 +5,14 @@ local Gathering = AddOn.Gathering
 local SessionStat = {}
 
 function Gathering:AddStat(stat, value)
-	if (not GatheringStats) then
-		GatheringStats = {}
-	end
+        if (not GatheringStats) then
+                GatheringStats = {}
+        end
 
-	if (not GatheringStats[stat]) then
-		GatheringStats[stat] = 0
-	end
+        local Amount = value or 1
 
-	if (not SessionStat[stat]) then
-		SessionStat[stat] = 0
-	end
-
-	GatheringStats[stat] = GatheringStats[stat] + (value or 1)
-	SessionStat[stat] = SessionStat[stat] + (value or 1)
+        GatheringStats[stat] = (GatheringStats[stat] or 0) + Amount
+        SessionStat[stat] = (SessionStat[stat] or 0) + Amount
 end
 
 Gathering.SessionStats = SessionStat
