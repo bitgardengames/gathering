@@ -11,12 +11,33 @@ end
 local GetItemInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
 local GetTime = GetTime
 local RequestLoadItemDataByID = C_Item and C_Item.RequestLoadItemDataByID
+local format = string.format
 local tinsert = table.insert
 
 local PendingLoot = {}
 
+function Gathering:CheckAnnounceLoot(link, name, id, quantity, value)
+	if (not self.Settings.AnnounceLoot) then
+		return
+	end
+
+	local Threshold = (self.Settings.AnnounceThreshold or Gathering.DefaultSettings.AnnounceThreshold or 0) * 100 * 100
+
+	if (Threshold <= 0 or not value or value < Threshold) then
+		return
+	end
+
+	local ItemLabel = link or name
+
+	if (not ItemLabel and id) then
+		ItemLabel = select(2, GetItemInfo(id)) or name or format("item:%d", id)
+	end
+
+	print(format(L["Gathering: %s x%d worth %s"], ItemLabel or name or "?", quantity or 1, self:CopperToGold(value)))
+end
+
 local HandleLoot = function(self, ID, Quantity, Name, Timestamp)
-	local ItemName, _, _, _, _, _, SubType, _, _, _, _, ClassID, SubClassID, BindType = GetItemInfo(ID)
+	local ItemName, Link, _, _, _, _, SubType, _, _, _, _, ClassID, SubClassID, BindType = GetItemInfo(ID)
 
 	if (not ClassID or not SubClassID or not SubType) then
 		if RequestLoadItemDataByID then
@@ -53,6 +74,12 @@ local HandleLoot = function(self, ID, Quantity, Name, Timestamp)
 	Info.Last = Now
 
 	self.TotalGathered = self.TotalGathered + Quantity
+
+	local Price = self:GetPrice(Link, ID)
+
+	if Price then
+		self:CheckAnnounceLoot(Link, Name, ID, Quantity, Price * Quantity)
+	end
 
 	if (self.Settings.DisplayMode == "TOTAL") then
 		self.Text:SetFormattedText(L["Total: %s"], self.TotalGathered)
