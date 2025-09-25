@@ -79,6 +79,7 @@ function Gathering:CreateWindow()
 	self.LastXP = UnitXP("player")
 	self.LastMax = UnitXPMax("player")
 	self.XPGained = 0
+	self.SessionStart = GetTime()
 
 	-- Bag slot display
 	local BagSlots = CreateFrame("Frame", nil, self, "BackdropTemplate")
@@ -275,6 +276,20 @@ function Gathering:UpdateSlotBarHeight(value)
 	Gathering.BagSlots:SetHeight(value)
 end
 
+function Gathering:UpdateAnnounceThreshold()
+	local Value = tonumber(self:GetText()) or Gathering.DefaultSettings.AnnounceThreshold
+
+	if (Value < 0) then
+		Value = 0
+	end
+
+	Gathering:UpdateSettingValue("AnnounceThreshold", Value)
+
+	if (tonumber(self:GetText()) ~= Value) then
+		self:SetText(Value)
+	end
+end
+
 function Gathering:UpdateTooltipFont()
 	local Font = SharedMedia:Fetch("font", self.Settings.WindowFont, "")
 
@@ -345,6 +360,10 @@ function Gathering:Reset()
 
 	wipe(self.Gathered)
 
+	if self.SessionStats then
+		wipe(self.SessionStats)
+	end
+
 	self.TotalGathered = 0
 	self.Seconds = 0
 	self.Elapsed = 0
@@ -355,6 +374,7 @@ function Gathering:Reset()
 	self.LastMax = UnitXPMax("player")
 	self.XPGained = 0
 	self.XPStartTime = GetTime()
+	self.SessionStart = GetTime()
 
 	if (self.Settings.DisplayMode == "TIME") then
 		self.Text:SetText(date("!%X", 0))
@@ -710,7 +730,7 @@ function Gathering:NumberOnEditFocusLost()
 	ClearCursor()
 end
 
-function Gathering:CreateNumberEditBox(page, key, text, func)
+function Gathering:CreateNumberEditBox(page, key, text, func, maxLetters)
 	local Line = CreateFrame("Frame", nil, page)
 	Line:SetSize(page:GetWidth() - 8, 22)
 
@@ -724,7 +744,7 @@ function Gathering:CreateNumberEditBox(page, key, text, func)
 	EditBox:SetAutoFocus(false)
 	EditBox:EnableKeyboard(true)
 	EditBox:EnableMouse(true)
-	EditBox:SetMaxLetters(3)
+	EditBox:SetMaxLetters(maxLetters or 3)
 	EditBox:SetNumeric(true)
 	EditBox:SetTextInsets(5, 0, 0, 0)
 	EditBox:SetText(self.Settings[key])
@@ -757,6 +777,8 @@ function Gathering:CreateNumberEditBox(page, key, text, func)
 	end
 
 	tinsert(page, Line)
+
+	return EditBox
 end
 
 local ScrollSelections = function(self)
@@ -1430,6 +1452,10 @@ function Gathering:SetupSettingsPage(page)
 	self:CreateCheckbox(RightWidgets, "ShowTooltipHelp", L["Show tooltip help"])
 	self:CreateCheckbox(RightWidgets, "UseVendorValue", L["Use vendor price when market value is unavailable"])
 
+	self:CreateHeader(RightWidgets, L["Notifications"])
+
+	self:CreateCheckbox(RightWidgets, "AnnounceLoot", L["Announce high value loot"])
+	self:CreateNumberEditBox(RightWidgets, "AnnounceThreshold", L["Gold threshold"], self.UpdateAnnounceThreshold, 4)
 
 	self:CreateHeader(RightWidgets, L["Bag Slots"])
 

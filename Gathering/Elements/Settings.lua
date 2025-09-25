@@ -20,11 +20,13 @@ Gathering.DefaultSettings = {
 	IgnoreBOP = false, -- Ignore bind on pickup gear. IE: ignore BoP loot on a raid run, but show BoE's for the auction house
 	HideIdle = false, -- Hide the tracker frame while not running
 	IgnoreMailItems = true, -- Ignore items that arrived through mail
-        IgnoreMailMoney = true, -- Ignore money that arrived through mail
-        ShowTooltipHelp = true, -- Display helpful information in the tooltip (Left click to toggle, right click to reset)
-        ShowTooltipData = false, -- Display Gathering pricing data on item tooltips
-        DisplayMode = "TIME", -- TOTAL; Display total gathered, GPH; display gold per hour, GOLD; display gold collected, TIME; display timer
-        UseVendorValue = true, -- Use vendor sale price when market data is unavailable
+	IgnoreMailMoney = true, -- Ignore money that arrived through mail
+	AnnounceLoot = true, -- Announce valuable loot in chat
+	AnnounceThreshold = 50, -- Minimum gold value before announcing loot
+	ShowTooltipHelp = true, -- Display helpful information in the tooltip (Left click to toggle, right click to reset)
+	ShowTooltipData = false, -- Display Gathering pricing data on item tooltips
+	DisplayMode = "TIME", -- TOTAL; Display total gathered, GPH; display gold per hour, GOLD; display gold collected, TIME; display timer
+	UseVendorValue = true, -- Use vendor sale price when market data is unavailable
 
         -- Styling
         WindowFont = Gathering.SharedMedia.DefaultMedia.font, -- Set the font
