@@ -1614,10 +1614,10 @@ function Gathering:SetupProfilesPage(page)
 	NameTexture:SetTexture(BlankTexture)
 	NameTexture:SetVertexColor(0.125, 0.133, 0.145)
 
-	local function CreateProfileButton(text, point, action)
+	local function CreateProfileButton(text, x, y, width, action)
 		local button = CreateFrame("Frame", nil, LeftWidgets, "BackdropTemplate")
-		button:SetSize(60, 22)
-		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", point, -108)
+		button:SetSize(width, 22)
+		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", x, y)
 		button:SetBackdrop(Outline)
 		button:SetBackdropColor(0.25, 0.266, 0.294)
 		button:SetScript("OnEnter", self.PageTabOnEnter)
@@ -1631,7 +1631,9 @@ function Gathering:SetupProfilesPage(page)
 	end
 
 	local SaveButton
-	local LoadButton = CreateProfileButton(L["Load"], 69, function() self:LoadProfile(page.Selected) end)
+	local LoadButton = CreateProfileButton(L["Load"], 102, -108, 93, function() self:LoadProfile(page.Selected) end)
+	local RenameButton
+	local CopyButton
 	local DeleteButton
 
 	local function SetButtonEnabled(button, enabled)
@@ -1643,9 +1645,28 @@ function Gathering:SetupProfilesPage(page)
 	function page:UpdateActions()
 		local normalizedName = Gathering:NormalizeProfileName(NameBox:GetText())
 		local hasSelection = self.Selected and GatheringProfiles.profiles[self.Selected] ~= nil
+		local nameExists = normalizedName and GatheringProfiles.profiles[normalizedName] ~= nil
+		local hasNewDestination = hasSelection and normalizedName and not nameExists
+		SaveButton.Text:SetText(nameExists and L["Save Changes"] or L["Create"])
 		SetButtonEnabled(SaveButton, not self.ConfirmationPending and normalizedName ~= nil)
 		SetButtonEnabled(LoadButton, not self.ConfirmationPending and hasSelection)
+		SetButtonEnabled(RenameButton, not self.ConfirmationPending and hasNewDestination)
+		SetButtonEnabled(CopyButton, not self.ConfirmationPending and hasNewDestination)
 		SetButtonEnabled(DeleteButton, not self.ConfirmationPending and hasSelection)
+	end
+
+	local function RenameProfile()
+		if (not page.ConfirmationPending and Gathering:RenameProfile(page.Selected, NameBox:GetText())) then
+			page.Selected = Gathering:NormalizeProfileName(NameBox:GetText())
+			NameBox:SetText(page.Selected)
+		end
+	end
+
+	local function CopyProfile()
+		if (not page.ConfirmationPending and Gathering:CopyProfile(page.Selected, NameBox:GetText())) then
+			page.Selected = Gathering:NormalizeProfileName(NameBox:GetText())
+			NameBox:SetText(page.Selected)
+		end
 	end
 
 	local function FinishConfirmation()
@@ -1695,8 +1716,10 @@ function Gathering:SetupProfilesPage(page)
 		end, FinishConfirmation)
 	end
 
-	SaveButton = CreateProfileButton(L["Save"], 4, SaveProfile)
-	DeleteButton = CreateProfileButton(L["Delete"], 134, DeleteProfile)
+	SaveButton = CreateProfileButton(L["Create"], 4, -108, 93, SaveProfile)
+	RenameButton = CreateProfileButton(L["Rename"], 4, -134, 60, RenameProfile)
+	CopyButton = CreateProfileButton(L["Copy"], 69, -134, 60, CopyProfile)
+	DeleteButton = CreateProfileButton(L["Delete"], 134, -134, 60, DeleteProfile)
 	NameBox:SetScript("OnEnterPressed", function(self)
 		SaveProfile()
 		self:ClearFocus()
@@ -1762,6 +1785,8 @@ function Gathering:SetupProfilesPage(page)
 	page.NameBox = NameBox
 	page.SaveButton = SaveButton
 	page.LoadButton = LoadButton
+	page.RenameButton = RenameButton
+	page.CopyButton = CopyButton
 	page.DeleteButton = DeleteButton
 	NameBox:SetText(GatheringProfiles.active)
 	self:RefreshProfilesPage(GatheringProfiles.active)
