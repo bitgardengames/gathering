@@ -2,26 +2,38 @@ local Name, AddOn = ...
 local Gathering = AddOn.Gathering
 local L = AddOn.L
 
+local function IsValidSetting(key, value)
+	if (key == "WindowWidth") then
+		return value >= 50 and value <= 500
+	elseif (key == "WindowHeight") then
+		return value >= 10 and value <= 100
+	elseif (key == "SlotBarHeight") then
+		return value >= 1 and value <= 20
+	elseif (key == "DisplayMode") then
+		return value == "TIME" or value == "GPH" or value == "GOLD" or value == "TOTAL"
+	elseif (key == "WindowFont") then
+		return Gathering.Fonts[value] ~= nil
+	end
+
+	return true
+end
+
 local function CopySettings(source)
-	local result = {}
+	local Settings = {}
 
-	for key, default in next, Gathering.DefaultSettings do
-		local value = source[key]
+	for Key, Default in next, Gathering.DefaultSettings do
+		local Value = source[Key]
 
-		if (value ~= nil and type(value) == type(default)) then
-			if ((key == "WindowWidth" and (value < 50 or value > 500)) or
-				(key == "WindowHeight" and (value < 10 or value > 100)) or
-				(key == "SlotBarHeight" and (value < 1 or value > 20)) or
-				(key == "DisplayMode" and value ~= "TIME" and value ~= "GPH" and value ~= "GOLD" and value ~= "TOTAL") or
-				(key == "WindowFont" and not Gathering.Fonts[value])) then
-				value = default
+		if (Value ~= nil and type(Value) == type(Default)) then
+			if (not IsValidSetting(Key, Value)) then
+				Value = Default
 			end
 
-			result[key] = value
+			Settings[Key] = Value
 		end
 	end
 
-	return result
+	return Settings
 end
 
 function Gathering:InitializeProfiles()
@@ -43,7 +55,13 @@ function Gathering:InitializeProfiles()
 end
 
 function Gathering:NormalizeProfileName(name)
-	name = type(name) == "string" and name:gsub("^%s+", ""):gsub("%s+$", ""):gsub("[%c]", "") or ""
+	if (type(name) ~= "string") then
+		name = ""
+	else
+		name = name:gsub("^%s+", "")
+		name = name:gsub("%s+$", "")
+		name = name:gsub("[%c]", "")
+	end
 
 	if (name == "") then
 		return nil, L["Profile name is required."]
@@ -55,11 +73,11 @@ function Gathering:NormalizeProfileName(name)
 end
 
 function Gathering:SaveProfile(name)
-	local errorMessage
-	name, errorMessage = self:NormalizeProfileName(name)
+	local ErrorMessage
+	name, ErrorMessage = self:NormalizeProfileName(name)
 
 	if (not name) then
-		print(errorMessage)
+		print(ErrorMessage)
 		return false
 	end
 
@@ -92,24 +110,24 @@ function Gathering:ApplySettings()
 end
 
 function Gathering:LoadProfile(name)
-	local profile = name and GatheringProfiles.profiles[name]
+	local Profile = name and GatheringProfiles.profiles[name]
 
-	if (type(profile) ~= "table") then
+	if (type(Profile) ~= "table") then
 		print(L["Select a profile first."])
 		return false
 	end
 
 	wipe(GatheringSettings)
 
-	for key, value in next, CopySettings(profile) do
-		GatheringSettings[key] = value
+	for Key, Value in next, CopySettings(Profile) do
+		GatheringSettings[Key] = Value
 	end
 
 	GatheringProfiles.active = name
 	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
 	self:ApplySettings()
 
-	if self.GUI then
+	if (self.GUI) then
 		self.GUI:Hide()
 		self.GUI = nil
 		self:CreateGUI()
