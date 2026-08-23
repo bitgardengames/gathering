@@ -2,19 +2,6 @@ local Name, AddOn = ...
 local Gathering = AddOn.Gathering
 local L = AddOn.L
 
-L["Profiles"] = L["Profiles"] or "Profiles"
-L["Profile Name"] = L["Profile Name"] or "Profile Name"
-L["Current Profile: %s"] = L["Current Profile: %s"] or "Current Profile: %s"
-L["Save"] = L["Save"] or "Save"
-L["Load"] = L["Load"] or "Load"
-L["Delete"] = L["Delete"] or "Delete"
-L["Profile name is required."] = L["Profile name is required."] or "Profile name is required."
-L["Profile names may not be longer than 32 characters."] = L["Profile names may not be longer than 32 characters."] or "Profile names may not be longer than 32 characters."
-L["Profile saved: %s"] = L["Profile saved: %s"] or "Profile saved: %s"
-L["Profile loaded: %s"] = L["Profile loaded: %s"] or "Profile loaded: %s"
-L["Profile deleted: %s"] = L["Profile deleted: %s"] or "Profile deleted: %s"
-L["Select a profile first."] = L["Select a profile first."] or "Select a profile first."
-
 local function CopySettings(source)
 	local result = {}
 
