@@ -482,6 +482,72 @@ function Gathering:ToggleResetPopup()
 	end
 end
 
+function Gathering:ShowProfileConfirmation(message, acceptText, onAccept, onCancel)
+	local Popup = self.ProfilePopup
+
+	if (not Popup) then
+		Popup = CreateFrame("Frame", nil, self, "BackdropTemplate")
+		Popup:SetSize(240, 80)
+		Popup:SetPoint("CENTER", UIParent, 0, 120)
+		Popup:SetBackdrop({bgFile = BlankTexture, edgeFile = BlankTexture, edgeSize = 1})
+		Popup:SetBackdropColor(0.2, 0.2, 0.2, 0.85)
+		Popup:SetBackdropBorderColor(0, 0, 0)
+		Popup:SetClampedToScreen(true)
+		Popup:RegisterForDrag("LeftButton")
+		Popup:SetScript("OnDragStart", Popup.StartMoving)
+		Popup:SetScript("OnDragStop", Popup.StopMovingOrSizing)
+
+		Popup.Text = Popup:CreateFontString(nil, "OVERLAY")
+		Popup.Text:SetPoint("TOP", Popup, 0, -4)
+		Popup.Text:SetSize(234, 40)
+		Popup.Text:SetJustifyH("CENTER")
+		Popup.Text:SetFontObject(GatheringFont)
+
+		Popup.Accept = CreateFrame("Frame", nil, Popup, "BackdropTemplate")
+		Popup.Accept:SetSize(114, 20)
+		Popup.Accept:SetPoint("BOTTOMLEFT", Popup, 4, 4)
+		Popup.Accept:SetBackdrop({bgFile = BlankTexture, edgeFile = BlankTexture, edgeSize = 1})
+		Popup.Accept:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
+		Popup.Accept:SetBackdropBorderColor(0, 0, 0)
+		Popup.Accept:SetScript("OnEnter", self.PopupButtonOnEnter)
+		Popup.Accept:SetScript("OnLeave", self.PopupButtonOnLeave)
+		Popup.Accept:SetScript("OnMouseDown", self.PopupButtonOnMouseDown)
+		Popup.Accept.Text = Popup.Accept:CreateFontString(nil, "OVERLAY")
+		Popup.Accept.Text:SetPoint("CENTER", Popup.Accept, 0, -0.5)
+		Popup.Accept.Text:SetFontObject(GatheringFont)
+
+		Popup.Cancel = CreateFrame("Frame", nil, Popup, "BackdropTemplate")
+		Popup.Cancel:SetSize(114, 20)
+		Popup.Cancel:SetPoint("LEFT", Popup.Accept, "RIGHT", 4, 0)
+		Popup.Cancel:SetBackdrop({bgFile = BlankTexture, edgeFile = BlankTexture, edgeSize = 1})
+		Popup.Cancel:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
+		Popup.Cancel:SetBackdropBorderColor(0, 0, 0)
+		Popup.Cancel:SetScript("OnEnter", self.PopupButtonOnEnter)
+		Popup.Cancel:SetScript("OnLeave", self.PopupButtonOnLeave)
+		Popup.Cancel:SetScript("OnMouseDown", self.PopupButtonOnMouseDown)
+		Popup.Cancel.Text = Popup.Cancel:CreateFontString(nil, "OVERLAY")
+		Popup.Cancel.Text:SetPoint("CENTER", Popup.Cancel, 0, -0.5)
+		Popup.Cancel.Text:SetFontObject(GatheringFont)
+		Popup.Cancel.Text:SetText(L["Cancel"])
+
+		self.ProfilePopup = Popup
+	end
+
+	Popup.Text:SetText(message)
+	Popup.Accept.Text:SetText(acceptText)
+	Popup.Accept:SetScript("OnMouseUp", function(button)
+		button.Text:SetPoint("CENTER", button, 0, -0.5)
+		Popup:Hide()
+		onAccept()
+	end)
+	Popup.Cancel:SetScript("OnMouseUp", function(button)
+		button.Text:SetPoint("CENTER", button, 0, -0.5)
+		Popup:Hide()
+		onCancel()
+	end)
+	Popup:Show()
+end
+
 function Gathering:CreateHeader(page, text)
 	local Header = CreateFrame("Frame", nil, page, "BackdropTemplate")
 	Header:SetSize(page:GetWidth() - 8, 22)
@@ -1543,12 +1609,6 @@ function Gathering:SetupProfilesPage(page)
 	NameBox:SetMaxLetters(32)
 	NameBox:SetTextInsets(5, 5, 0, 0)
 	NameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-	NameBox:SetScript("OnEnterPressed", function(self)
-		if Gathering:SaveProfile(self:GetText()) then
-			self:SetText(GatheringProfiles.active)
-		end
-		self:ClearFocus()
-	end)
 	local NameTexture = NameBox:CreateTexture(nil, "BACKGROUND")
 	NameTexture:SetAllPoints()
 	NameTexture:SetTexture(BlankTexture)
@@ -1570,13 +1630,9 @@ function Gathering:SetupProfilesPage(page)
 		return button
 	end
 
-	local SaveButton = CreateProfileButton(L["Save"], 4, function()
-		if self:SaveProfile(NameBox:GetText()) then
-			NameBox:SetText(GatheringProfiles.active)
-		end
-	end)
+	local SaveButton
 	local LoadButton = CreateProfileButton(L["Load"], 69, function() self:LoadProfile(page.Selected) end)
-	local DeleteButton = CreateProfileButton(L["Delete"], 134, function() self:DeleteProfile(page.Selected) end)
+	local DeleteButton
 
 	local function SetButtonEnabled(button, enabled)
 		button:EnableMouse(enabled)
@@ -1587,10 +1643,64 @@ function Gathering:SetupProfilesPage(page)
 	function page:UpdateActions()
 		local normalizedName = Gathering:NormalizeProfileName(NameBox:GetText())
 		local hasSelection = self.Selected and GatheringProfiles.profiles[self.Selected] ~= nil
-		SetButtonEnabled(SaveButton, normalizedName ~= nil)
-		SetButtonEnabled(LoadButton, hasSelection)
-		SetButtonEnabled(DeleteButton, hasSelection)
+		SetButtonEnabled(SaveButton, not self.ConfirmationPending and normalizedName ~= nil)
+		SetButtonEnabled(LoadButton, not self.ConfirmationPending and hasSelection)
+		SetButtonEnabled(DeleteButton, not self.ConfirmationPending and hasSelection)
 	end
+
+	local function FinishConfirmation()
+		page.ConfirmationPending = false
+		page:UpdateActions()
+	end
+
+	local function SaveProfile()
+		if page.ConfirmationPending then
+			return
+		end
+
+		local normalizedName = Gathering:ValidateSaveProfile(NameBox:GetText())
+
+		if (not normalizedName) then
+			return
+		end
+
+		local function Save()
+			Gathering:SaveProfile(normalizedName)
+			NameBox:SetText(GatheringProfiles.active)
+		end
+
+		if GatheringProfiles.profiles[normalizedName] then
+			page.ConfirmationPending = true
+			page:UpdateActions()
+			Gathering:ShowProfileConfirmation(format(L["Overwrite profile \"%s\"?"], normalizedName), L["Overwrite"], function()
+				FinishConfirmation()
+				Save()
+			end, FinishConfirmation)
+		else
+			Save()
+		end
+	end
+
+	local function DeleteProfile()
+		if page.ConfirmationPending or not Gathering:ValidateDeleteProfile(page.Selected) then
+			return
+		end
+
+		local selected = page.Selected
+		page.ConfirmationPending = true
+		page:UpdateActions()
+		Gathering:ShowProfileConfirmation(format(L["Delete profile \"%s\"?"], selected), L["Delete"], function()
+			FinishConfirmation()
+			Gathering:DeleteProfile(selected)
+		end, FinishConfirmation)
+	end
+
+	SaveButton = CreateProfileButton(L["Save"], 4, SaveProfile)
+	DeleteButton = CreateProfileButton(L["Delete"], 134, DeleteProfile)
+	NameBox:SetScript("OnEnterPressed", function(self)
+		SaveProfile()
+		self:ClearFocus()
+	end)
 
 	NameBox:SetScript("OnTextChanged", function() page:UpdateActions() end)
 	page.Rows = {}
