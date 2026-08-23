@@ -1437,6 +1437,159 @@ function Gathering:SetupSettingsPage(page)
 	self:SortWidgets(RightWidgets)
 end
 
+function Gathering:RefreshProfilesPage(selected)
+	local page = self.GetPage and self:GetPage(L["Profiles"])
+
+	if (not page) then
+		return
+	end
+
+	page.Selected = selected
+	page.Current.Text:SetText(format(L["Current Profile: %s"], GatheringProfiles.active))
+
+	local names = {}
+
+	for name in next, GatheringProfiles.profiles do
+		tinsert(names, name)
+	end
+
+	table.sort(names, function(a, b) return a:lower() < b:lower() end)
+	page.ProfileNames = names
+
+	if selected then
+		for index, name in ipairs(names) do
+			if (name == selected and (index < (page.Offset or 1) or index > (page.Offset or 1) + 8)) then
+				page.Offset = math.max(1, index - 8)
+				break
+			end
+		end
+	end
+
+	page.Offset = math.min(page.Offset or 1, math.max(1, #names - 8))
+
+	for i = 1, #page.Rows do
+		local row = page.Rows[i]
+		local name = names[page.Offset + i - 1]
+		row.ProfileName = name
+		row.Text:SetText(name or "")
+		row:SetShown(name ~= nil)
+
+		if (name == selected) then
+			row:SetBackdropColor(0.25, 0.266, 0.294)
+		else
+			row:SetBackdropColor(0.184, 0.192, 0.211)
+		end
+	end
+
+	if page.ScrollBar then
+		page.ScrollBar:SetMinMaxValues(1, math.max(1, #names - 8))
+		page.ScrollBar:SetValue(page.Offset)
+	end
+end
+
+function Gathering:SetupProfilesPage(page)
+	local LeftWidgets = CreateFrame("Frame", nil, page, "BackdropTemplate")
+	LeftWidgets:SetSize(199, 246)
+	LeftWidgets:SetPoint("LEFT", page, 0, 0)
+	LeftWidgets:SetBackdrop(Outline)
+	LeftWidgets:SetBackdropColor(0.184, 0.192, 0.211)
+
+	local RightWidgets = CreateFrame("Frame", nil, page, "BackdropTemplate")
+	RightWidgets:SetSize(198, 246)
+	RightWidgets:SetPoint("LEFT", LeftWidgets, "RIGHT", 6, 0)
+	RightWidgets:SetBackdrop(Outline)
+	RightWidgets:SetBackdropColor(0.184, 0.192, 0.211)
+
+	self:CreateHeader(LeftWidgets, L["Profiles"])
+	self:SortWidgets(LeftWidgets)
+
+	local NameBox = CreateFrame("EditBox", nil, LeftWidgets)
+	NameBox:SetSize(191, 22)
+	NameBox:SetPoint("TOPLEFT", LeftWidgets, 4, -30)
+	NameBox:SetFontObject(GatheringFont)
+	NameBox:SetAutoFocus(false)
+	NameBox:SetMaxLetters(32)
+	NameBox:SetTextInsets(5, 5, 0, 0)
+	NameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	NameBox:SetScript("OnEnterPressed", function(self) Gathering:SaveProfile(self:GetText()); self:ClearFocus() end)
+	local NameTexture = NameBox:CreateTexture(nil, "BACKGROUND")
+	NameTexture:SetAllPoints()
+	NameTexture:SetTexture(BlankTexture)
+	NameTexture:SetVertexColor(0.125, 0.133, 0.145)
+
+	local function CreateProfileButton(text, point, action)
+		local button = CreateFrame("Frame", nil, LeftWidgets, "BackdropTemplate")
+		button:SetSize(60, 22)
+		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", point, -58)
+		button:SetBackdrop(Outline)
+		button:SetBackdropColor(0.25, 0.266, 0.294)
+		button:SetScript("OnEnter", self.PageTabOnEnter)
+		button:SetScript("OnLeave", self.PageTabOnLeave)
+		button:SetScript("OnMouseUp", action)
+		button.Text = button:CreateFontString(nil, "OVERLAY")
+		button.Text:SetPoint("CENTER")
+		button.Text:SetFontObject(GatheringFont)
+		button.Text:SetText(text)
+		return button
+	end
+
+	CreateProfileButton(L["Save"], 4, function() self:SaveProfile(NameBox:GetText()) end)
+	CreateProfileButton(L["Load"], 69, function() self:LoadProfile(page.Selected) end)
+	CreateProfileButton(L["Delete"], 134, function() self:DeleteProfile(page.Selected) end)
+
+	local Current = CreateFrame("Frame", nil, LeftWidgets)
+	Current:SetSize(191, 22)
+	Current:SetPoint("TOPLEFT", LeftWidgets, 4, -88)
+	Current.Text = Current:CreateFontString(nil, "OVERLAY")
+	Current.Text:SetPoint("LEFT", Current, 4, 0)
+	Current.Text:SetFontObject(GatheringFont)
+	page.Current = Current
+	page.Rows = {}
+
+	for i = 1, 9 do
+		local row = CreateFrame("Frame", nil, RightWidgets, "BackdropTemplate")
+		row:SetSize(190, 22)
+		row:SetPoint("TOPLEFT", RightWidgets, 4, -4 - ((i - 1) * 26))
+		row:SetBackdrop(Outline)
+		row:SetScript("OnMouseUp", function(self)
+			page.Selected = self.ProfileName
+			NameBox:SetText(self.ProfileName)
+			Gathering:RefreshProfilesPage(self.ProfileName)
+		end)
+		row.Text = row:CreateFontString(nil, "OVERLAY")
+		row.Text:SetPoint("LEFT", row, 5, 0)
+		row.Text:SetFontObject(GatheringFont)
+		tinsert(page.Rows, row)
+	end
+
+	local ScrollBar = CreateFrame("Slider", nil, RightWidgets)
+	ScrollBar:SetWidth(8)
+	ScrollBar:SetPoint("TOPRIGHT", RightWidgets, -2, -4)
+	ScrollBar:SetPoint("BOTTOMRIGHT", RightWidgets, -2, 4)
+	ScrollBar:SetThumbTexture(BlankTexture)
+	ScrollBar:SetOrientation("VERTICAL")
+	ScrollBar:SetValueStep(1)
+	ScrollBar:SetObeyStepOnDrag(true)
+	ScrollBar:EnableMouseWheel(true)
+	ScrollBar:SetScript("OnValueChanged", function(self, value)
+		local offset = floor(value + 0.5)
+
+		if (page.Offset ~= offset) then
+			page.Offset = offset
+			Gathering:RefreshProfilesPage(page.Selected)
+		end
+	end)
+	ScrollBar:SetScript("OnMouseWheel", function(self, delta)
+		self:SetValue(self:GetValue() - delta)
+	end)
+	ScrollBar:GetThumbTexture():SetSize(8, 22)
+	ScrollBar:GetThumbTexture():SetVertexColor(0.25, 0.266, 0.294)
+	page.ScrollBar = ScrollBar
+
+	page.NameBox = NameBox
+	self:RefreshProfilesPage(GatheringProfiles.active)
+end
+
 local IgnoreWindowOnMouseWheel = function(self, delta)
 	if (delta == 1) then
 		self.Offset = self.Offset - 1
@@ -1846,6 +1999,9 @@ function Gathering:CreateGUI()
 	local TrackingPage = self:AddPage(L["Tracking"])
 	self:SetupTrackingPage(TrackingPage)
 
+	local ProfilesPage = self:AddPage(L["Profiles"])
+	self:SetupProfilesPage(ProfilesPage)
+
 	local IgnorePage = self:AddPage(L["Ignore"])
 	self:SetupIgnorePage(IgnorePage)
 
@@ -1913,6 +2069,7 @@ function Gathering:PLAYER_ENTERING_WORLD()
 		end
 
 		self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
+		self:InitializeProfiles()
 
 		self:CreateWindow()
 
