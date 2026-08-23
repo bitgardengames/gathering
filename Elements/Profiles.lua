@@ -85,10 +85,68 @@ function Gathering:ValidateSaveProfile(name)
 end
 
 function Gathering:SaveProfile(name)
+	local ErrorMessage
+	name, ErrorMessage = self:NormalizeProfileName(name)
+
+	if (not name) then
+		print(ErrorMessage)
+		return false
+	end
+
 	GatheringProfiles.profiles[name] = CopySettings(self.Settings)
 	GatheringProfiles.active = name
 	self:RefreshProfilesPage(name)
 	print(format(L["Profile saved: %s"], name))
+
+	return true
+end
+
+function Gathering:RenameProfile(source, destination)
+	local ErrorMessage
+	destination, ErrorMessage = self:NormalizeProfileName(destination)
+
+	if (not destination) then
+		print(ErrorMessage)
+		return false
+	elseif (not source or type(GatheringProfiles.profiles[source]) ~= "table") then
+		print(L["Select a profile first."])
+		return false
+	elseif (GatheringProfiles.profiles[destination]) then
+		print(format(L["A profile named \"%s\" already exists."], destination))
+		return false
+	end
+
+	GatheringProfiles.profiles[destination] = GatheringProfiles.profiles[source]
+	GatheringProfiles.profiles[source] = nil
+
+	if (GatheringProfiles.active == source) then
+		GatheringProfiles.active = destination
+	end
+
+	self:RefreshProfilesPage(destination)
+	print(format(L["Profile renamed: %s"], destination))
+
+	return true
+end
+
+function Gathering:CopyProfile(source, destination)
+	local ErrorMessage
+	destination, ErrorMessage = self:NormalizeProfileName(destination)
+
+	if (not destination) then
+		print(ErrorMessage)
+		return false
+	elseif (not source or type(GatheringProfiles.profiles[source]) ~= "table") then
+		print(L["Select a profile first."])
+		return false
+	elseif (GatheringProfiles.profiles[destination]) then
+		print(format(L["A profile named \"%s\" already exists."], destination))
+		return false
+	end
+
+	GatheringProfiles.profiles[destination] = CopySettings(GatheringProfiles.profiles[source])
+	self:RefreshProfilesPage(destination)
+	print(format(L["Profile copied: %s"], destination))
 
 	return true
 end
