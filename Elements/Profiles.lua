@@ -72,15 +72,19 @@ function Gathering:NormalizeProfileName(name)
 	return name
 end
 
-function Gathering:SaveProfile(name)
+function Gathering:ValidateSaveProfile(name)
 	local ErrorMessage
 	name, ErrorMessage = self:NormalizeProfileName(name)
 
 	if (not name) then
 		print(ErrorMessage)
-		return false
+		return nil
 	end
 
+	return name
+end
+
+function Gathering:SaveProfile(name)
 	GatheringProfiles.profiles[name] = CopySettings(self.Settings)
 	GatheringProfiles.active = name
 	self:RefreshProfilesPage(name)
@@ -139,12 +143,16 @@ function Gathering:LoadProfile(name)
 	return true
 end
 
-function Gathering:DeleteProfile(name)
+function Gathering:ValidateDeleteProfile(name)
 	if (not name or not GatheringProfiles.profiles[name]) then
 		print(L["Select a profile first."])
 		return false
 	end
 
+	return true
+end
+
+function Gathering:DeleteProfile(name)
 	GatheringProfiles.profiles[name] = nil
 
 	if (name == GatheringProfiles.active) then
