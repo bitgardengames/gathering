@@ -1444,7 +1444,15 @@ function Gathering:RefreshProfilesPage(selected)
 		return
 	end
 
-	page.Selected = selected
+	if (selected and GatheringProfiles.profiles[selected]) then
+		page.Selected = selected
+	elseif (page.Selected and GatheringProfiles.profiles[page.Selected]) then
+		selected = page.Selected
+	else
+		selected = GatheringProfiles.active
+		page.Selected = selected
+	end
+
 	page.Current.Text:SetText(format(L["Current Profile: %s"], GatheringProfiles.active))
 
 	local names = {}
@@ -1479,11 +1487,21 @@ function Gathering:RefreshProfilesPage(selected)
 		else
 			row:SetBackdropColor(0.184, 0.192, 0.211)
 		end
+
+		if (name == GatheringProfiles.active) then
+			row.Text:SetTextColor(1, 0.768, 0.302)
+		else
+			row.Text:SetTextColor(1, 1, 1)
+		end
 	end
 
 	if page.ScrollBar then
 		page.ScrollBar:SetMinMaxValues(1, math.max(1, #names - 8))
 		page.ScrollBar:SetValue(page.Offset)
+	end
+
+	if page.UpdateActions then
+		page:UpdateActions()
 	end
 end
 
@@ -1503,15 +1521,34 @@ function Gathering:SetupProfilesPage(page)
 	self:CreateHeader(LeftWidgets, L["Profiles"])
 	self:SortWidgets(LeftWidgets)
 
+	local Current = CreateFrame("Frame", nil, LeftWidgets)
+	Current:SetSize(191, 22)
+	Current:SetPoint("TOPLEFT", LeftWidgets, 4, -30)
+	Current.Text = Current:CreateFontString(nil, "OVERLAY")
+	Current.Text:SetPoint("LEFT", Current, 4, 0)
+	Current.Text:SetFontObject(GatheringFont)
+	Current.Text:SetTextColor(1, 0.768, 0.302)
+	page.Current = Current
+
+	local NameLabel = LeftWidgets:CreateFontString(nil, "OVERLAY")
+	NameLabel:SetPoint("TOPLEFT", LeftWidgets, 8, -62)
+	NameLabel:SetFontObject(GatheringFont)
+	NameLabel:SetText(L["Profile Name"])
+
 	local NameBox = CreateFrame("EditBox", nil, LeftWidgets)
 	NameBox:SetSize(191, 22)
-	NameBox:SetPoint("TOPLEFT", LeftWidgets, 4, -30)
+	NameBox:SetPoint("TOPLEFT", LeftWidgets, 4, -78)
 	NameBox:SetFontObject(GatheringFont)
 	NameBox:SetAutoFocus(false)
 	NameBox:SetMaxLetters(32)
 	NameBox:SetTextInsets(5, 5, 0, 0)
 	NameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-	NameBox:SetScript("OnEnterPressed", function(self) Gathering:SaveProfile(self:GetText()); self:ClearFocus() end)
+	NameBox:SetScript("OnEnterPressed", function(self)
+		if Gathering:SaveProfile(self:GetText()) then
+			self:SetText(GatheringProfiles.active)
+		end
+		self:ClearFocus()
+	end)
 	local NameTexture = NameBox:CreateTexture(nil, "BACKGROUND")
 	NameTexture:SetAllPoints()
 	NameTexture:SetTexture(BlankTexture)
@@ -1520,7 +1557,7 @@ function Gathering:SetupProfilesPage(page)
 	local function CreateProfileButton(text, point, action)
 		local button = CreateFrame("Frame", nil, LeftWidgets, "BackdropTemplate")
 		button:SetSize(60, 22)
-		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", point, -58)
+		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", point, -108)
 		button:SetBackdrop(Outline)
 		button:SetBackdropColor(0.25, 0.266, 0.294)
 		button:SetScript("OnEnter", self.PageTabOnEnter)
@@ -1533,17 +1570,29 @@ function Gathering:SetupProfilesPage(page)
 		return button
 	end
 
-	CreateProfileButton(L["Save"], 4, function() self:SaveProfile(NameBox:GetText()) end)
-	CreateProfileButton(L["Load"], 69, function() self:LoadProfile(page.Selected) end)
-	CreateProfileButton(L["Delete"], 134, function() self:DeleteProfile(page.Selected) end)
+	local SaveButton = CreateProfileButton(L["Save"], 4, function()
+		if self:SaveProfile(NameBox:GetText()) then
+			NameBox:SetText(GatheringProfiles.active)
+		end
+	end)
+	local LoadButton = CreateProfileButton(L["Load"], 69, function() self:LoadProfile(page.Selected) end)
+	local DeleteButton = CreateProfileButton(L["Delete"], 134, function() self:DeleteProfile(page.Selected) end)
 
-	local Current = CreateFrame("Frame", nil, LeftWidgets)
-	Current:SetSize(191, 22)
-	Current:SetPoint("TOPLEFT", LeftWidgets, 4, -88)
-	Current.Text = Current:CreateFontString(nil, "OVERLAY")
-	Current.Text:SetPoint("LEFT", Current, 4, 0)
-	Current.Text:SetFontObject(GatheringFont)
-	page.Current = Current
+	local function SetButtonEnabled(button, enabled)
+		button:EnableMouse(enabled)
+		button:SetBackdropColor(enabled and 0.25 or 0.16, enabled and 0.266 or 0.16, enabled and 0.294 or 0.16)
+		button.Text:SetTextColor(enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
+	end
+
+	function page:UpdateActions()
+		local normalizedName = Gathering:NormalizeProfileName(NameBox:GetText())
+		local hasSelection = self.Selected and GatheringProfiles.profiles[self.Selected] ~= nil
+		SetButtonEnabled(SaveButton, normalizedName ~= nil)
+		SetButtonEnabled(LoadButton, hasSelection)
+		SetButtonEnabled(DeleteButton, hasSelection)
+	end
+
+	NameBox:SetScript("OnTextChanged", function() page:UpdateActions() end)
 	page.Rows = {}
 
 	for i = 1, 9 do
@@ -1551,6 +1600,16 @@ function Gathering:SetupProfilesPage(page)
 		row:SetSize(190, 22)
 		row:SetPoint("TOPLEFT", RightWidgets, 4, -4 - ((i - 1) * 26))
 		row:SetBackdrop(Outline)
+		row:SetScript("OnEnter", function(self)
+			if (self.ProfileName ~= page.Selected) then
+				self:SetBackdropColor(0.22, 0.231, 0.254)
+			end
+		end)
+		row:SetScript("OnLeave", function(self)
+			if (self.ProfileName ~= page.Selected) then
+				self:SetBackdropColor(0.184, 0.192, 0.211)
+			end
+		end)
 		row:SetScript("OnMouseUp", function(self)
 			page.Selected = self.ProfileName
 			NameBox:SetText(self.ProfileName)
@@ -1585,8 +1644,16 @@ function Gathering:SetupProfilesPage(page)
 	ScrollBar:GetThumbTexture():SetSize(8, 22)
 	ScrollBar:GetThumbTexture():SetVertexColor(0.25, 0.266, 0.294)
 	page.ScrollBar = ScrollBar
+	RightWidgets:EnableMouseWheel(true)
+	RightWidgets:SetScript("OnMouseWheel", function(_, delta)
+		ScrollBar:SetValue(ScrollBar:GetValue() - delta)
+	end)
 
 	page.NameBox = NameBox
+	page.SaveButton = SaveButton
+	page.LoadButton = LoadButton
+	page.DeleteButton = DeleteButton
+	NameBox:SetText(GatheringProfiles.active)
 	self:RefreshProfilesPage(GatheringProfiles.active)
 end
 
