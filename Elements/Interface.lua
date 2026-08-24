@@ -563,6 +563,13 @@ function Gathering:CreateProfileEditBox(page, placeholder)
 	Tex:SetAllPoints()
 	Tex:SetTexture(BlankTexture)
 	Tex:SetVertexColor(0.125, 0.133, 0.145)
+	EditBox.Tex = Tex
+	EditBox:SetScript("OnEnter", function(self)
+		self.Tex:SetVertexColor(0.3, 0.3, 0.34)
+	end)
+	EditBox:SetScript("OnLeave", function(self)
+		self.Tex:SetVertexColor(0.125, 0.133, 0.145)
+	end)
 
 	Line.Widget = EditBox
 	tinsert(page, Line)
