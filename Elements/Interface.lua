@@ -1688,10 +1688,10 @@ function Gathering:SetupProfilesPage(page)
 	NameTexture:SetVertexColor(0.125, 0.133, 0.145)
 	NameBox.Texture = NameTexture
 
-	local function CreateProfileButton(text, x, y, width, action)
+	local function CreateProfileButton(text, y, action)
 		local button = CreateFrame("Frame", nil, LeftWidgets, "BackdropTemplate")
-		button:SetSize(width, 22)
-		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", x, y)
+		button:SetSize(191, 22)
+		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", 4, y)
 		button:SetBackdrop(Outline)
 		button:SetBackdropColor(0.184, 0.192, 0.211)
 		button:SetScript("OnEnter", self.PageTabOnEnter)
@@ -1711,7 +1711,7 @@ function Gathering:SetupProfilesPage(page)
 	end
 
 	local SaveButton
-	local LoadButton = CreateProfileButton(L["Load"], 102, -108, 93, function() self:LoadProfile(page.Selected) end)
+	local LoadButton = CreateProfileButton(L["Load"], -134, function() self:LoadProfile(page.Selected) end)
 	local RenameButton
 	local CopyButton
 	local DeleteButton
@@ -1796,10 +1796,10 @@ function Gathering:SetupProfilesPage(page)
 		end, FinishConfirmation)
 	end
 
-	SaveButton = CreateProfileButton(L["Create"], 4, -108, 93, SaveProfile)
-	RenameButton = CreateProfileButton(L["Rename"], 4, -134, 60, RenameProfile)
-	CopyButton = CreateProfileButton(L["Copy"], 69, -134, 60, CopyProfile)
-	DeleteButton = CreateProfileButton(L["Delete"], 134, -134, 60, DeleteProfile)
+	SaveButton = CreateProfileButton(L["Create"], -108, SaveProfile)
+	RenameButton = CreateProfileButton(L["Rename"], -160, RenameProfile)
+	CopyButton = CreateProfileButton(L["Copy"], -186, CopyProfile)
+	DeleteButton = CreateProfileButton(L["Delete"], -212, DeleteProfile)
 	NameBox:SetScript("OnEnterPressed", function(self)
 		SaveProfile()
 		self:ClearFocus()
