@@ -126,14 +126,14 @@ function Gathering:SetProfile(name)
 	self:RefreshProfilePage()
 end
 
-function Gathering:CreateProfile(name, copyCurrent)
+function Gathering:CreateProfile(name)
 	name = name and strtrim(name)
 
 	if (not name or name == "" or GatheringProfiles.profiles[name]) then
 		return false
 	end
 
-	GatheringProfiles.profiles[name] = copyCurrent and CopySettings(GatheringSettings) or {}
+	GatheringProfiles.profiles[name] = {}
 	self:SetProfile(name)
 	return true
 end
