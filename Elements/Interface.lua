@@ -7,6 +7,7 @@ local BlankTexture = "Interface\\AddOns\\Gathering\\Assets\\HydraUIBlank.tga"
 local BarTexture = "Interface\\AddOns\\Gathering\\Assets\\HydraUI4.tga"
 local MaxWidgets = 11
 local MaxSelections = 8
+local PreviewTextColor = 0.55
 
 SharedMedia:Register("font", "PT Sans", "Interface\\Addons\\Gathering\\Assets\\PTSans.ttf")
 SharedMedia:Register("statusbar", "HydraUI 4", BarTexture)
@@ -552,7 +553,7 @@ function Gathering:CreateProfileEditBox(page, placeholder)
 	EditBox.Placeholder = EditBox:CreateFontString(nil, "OVERLAY")
 	EditBox.Placeholder:SetPoint("LEFT", EditBox, 5, 0)
 	EditBox.Placeholder:SetFontObject(GatheringFont)
-	EditBox.Placeholder:SetTextColor(0.55, 0.55, 0.55)
+	EditBox.Placeholder:SetTextColor(PreviewTextColor, PreviewTextColor, PreviewTextColor)
 	EditBox.Placeholder:SetText(placeholder or L["Profile name"])
 	EditBox:SetScript("OnTextChanged", function(self)
 		self.Placeholder:SetShown(self:GetText() == "" and not self:HasFocus())
@@ -671,12 +672,14 @@ function Gathering:EditBoxOnEnterPressed()
 		self:Hook(Text)
 	end
 
+	self:SetTextColor(PreviewTextColor, PreviewTextColor, PreviewTextColor)
 	self:SetText(L["Ignore items"])
 end
 
 function Gathering:OnEscapePressed()
 	self:SetAutoFocus(false)
 	self:ClearFocus()
+	self:SetTextColor(PreviewTextColor, PreviewTextColor, PreviewTextColor)
 	self:SetText(L["Ignore items"])
 end
 
@@ -684,6 +687,7 @@ function Gathering:EditBoxOnMouseDown()
 	local Type, ID, Link = GetCursorInfo()
 
 	self:SetAutoFocus(true)
+	self:SetTextColor(1, 1, 1)
 
 	if (Type and Type == "item") then
 		self:SetText(ID)
@@ -696,6 +700,7 @@ function Gathering:EditBoxOnMouseDown()
 end
 
 function Gathering:OnEditFocusLost()
+	self:SetTextColor(PreviewTextColor, PreviewTextColor, PreviewTextColor)
 	self:SetText("")
 	self.Icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
 
@@ -736,6 +741,7 @@ function Gathering:CreateEditBox(page, text, func)
 	EditBox:EnableMouse(true)
 	EditBox:SetMaxLetters(255)
 	EditBox:SetTextInsets(5, 0, 0, 0)
+	EditBox:SetTextColor(PreviewTextColor, PreviewTextColor, PreviewTextColor)
 	EditBox:SetText(text)
 	EditBox:SetScript("OnEnterPressed", self.EditBoxOnEnterPressed)
 	EditBox:SetScript("OnEscapePressed", self.OnEscapePressed)
