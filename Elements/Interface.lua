@@ -1600,16 +1600,16 @@ function Gathering:SetupProfilesPage(page)
 	page.ProfileSelection = LeftWidgets[#LeftWidgets].Widget
 	page.ProfileSelection.Current:SetText(self.ProfileName)
 
-	self:CreateHeader(LeftWidgets, "Create a Copy")
+	self:CreateHeader(LeftWidgets, "Create Profile")
 	page.NewProfile = self:CreateProfileEditBox(LeftWidgets, "New profile name")
-	self:CreateProfileButton(LeftWidgets, "Create from active profile", function()
-		if Gathering:CreateProfile(page.NewProfile:GetText(), true) then
+	self:CreateProfileButton(LeftWidgets, "Create profile", function()
+		if Gathering:CreateProfile(page.NewProfile:GetText()) then
 			page.NewProfile:SetText("")
 			page.NewProfile:ClearFocus()
 		end
 	end)
 	page.NewProfile:SetScript("OnEnterPressed", function(self)
-		if Gathering:CreateProfile(self:GetText(), true) then
+		if Gathering:CreateProfile(self:GetText()) then
 			self:SetText("")
 			self:ClearFocus()
 		end
