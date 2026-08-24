@@ -191,12 +191,21 @@ function Gathering:ResetProfile()
 end
 
 function Gathering:DeleteProfile(name)
-	if (not name or name == self.ProfileName or not GatheringProfiles.profiles[name]) then
+	if (not name or name == "Default" or not GatheringProfiles.profiles[name]) then
 		return
 	end
 
-	GatheringProfiles.profiles[name] = nil
 	GatheringProfiles.profiles.Default = GatheringProfiles.profiles.Default or {}
+
+	-- Profile deletion is also part of the public profile API, so do not rely on
+	-- the settings page to switch away from the active profile first. Keeping the
+	-- fallback table alive while SetProfile applies it also prevents Settings and
+	-- GatheringSettings from retaining a reference to the table being deleted.
+	if (name == self.ProfileName) then
+		self:SetProfile("Default")
+	end
+
+	GatheringProfiles.profiles[name] = nil
 
 	for character, profile in next, GatheringProfiles.profileKeys do
 		if (profile == name) then

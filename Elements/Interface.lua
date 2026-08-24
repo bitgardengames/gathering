@@ -1642,7 +1642,6 @@ function Gathering:SetupProfilesPage(page)
 	page.Delete = self:CreateProfileButton(RightWidgets, L["Delete active profile"], function()
 		local profile = Gathering.ProfileName
 		ShowProfileConfirmation("GATHERING_DELETE_PROFILE", format(L["Delete %s? This cannot be undone."], profile), DELETE, function()
-			Gathering:SetProfile("Default")
 			Gathering:DeleteProfile(profile)
 		end)
 	end)
