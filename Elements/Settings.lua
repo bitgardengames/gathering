@@ -92,7 +92,7 @@ function Gathering:ApplyProfile()
 	-- for which settings have side effects. Refreshing with notifications keeps
 	-- both the controls and every registered hook in sync when a profile changes.
 	if (self.Windows) then
-		self:RefreshSettingsWidgets(true)
+		self:RefreshSettingsWidgets()
 		return
 	end
 
