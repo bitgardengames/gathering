@@ -1602,12 +1602,6 @@ function Gathering:SetupProfilesPage(page)
 
 	self:CreateHeader(LeftWidgets, "Create Profile")
 	page.NewProfile = self:CreateProfileEditBox(LeftWidgets, "New profile name")
-	self:CreateProfileButton(LeftWidgets, "Create profile", function()
-		if Gathering:CreateProfile(page.NewProfile:GetText()) then
-			page.NewProfile:SetText("")
-			page.NewProfile:ClearFocus()
-		end
-	end)
 	page.NewProfile:SetScript("OnEnterPressed", function(self)
 		if Gathering:CreateProfile(self:GetText()) then
 			self:SetText("")
@@ -1617,12 +1611,6 @@ function Gathering:SetupProfilesPage(page)
 
 	self:CreateHeader(RightWidgets, "Rename Active Profile")
 	page.RenameProfile = self:CreateProfileEditBox(RightWidgets, "Rename active profile")
-	self:CreateProfileButton(RightWidgets, "Rename", function()
-		if Gathering:RenameProfile(page.RenameProfile:GetText()) then
-			page.RenameProfile:SetText("")
-			page.RenameProfile:ClearFocus()
-		end
-	end)
 	page.RenameProfile:SetScript("OnEnterPressed", function(self)
 		if Gathering:RenameProfile(self:GetText()) then
 			self:SetText("")
