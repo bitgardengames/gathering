@@ -628,6 +628,8 @@ function Gathering:CreateCheckbox(page, key, text, func)
 	Checkbox.Tex = Tex
 	Checkbox.Overlay = Overlay
 	Checkbox.Text = Text
+	Checkbox.Type = "Checkbox"
+	Line.Widget = Checkbox
 
 	if self.Settings[key] then
 		Tex:SetVertexColor(1, 0.7686, 0.3019)
@@ -828,6 +830,8 @@ function Gathering:CreateNumberEditBox(page, key, text, func)
 
 	EditBox.Tex = Tex
 	EditBox.Text = Text
+	EditBox.Type = "EditBox"
+	Line.Widget = EditBox
 
 	if func then
 		EditBox.Hook = func
@@ -1055,6 +1059,8 @@ function Gathering:CreateFontSelection(page, key, text, selections, func)
 	Selection.Arrow = Arrow
 	Selection.Current = Current
 	Selection.Text = Text
+	Selection.Type = "FontSelection"
+	Line.Widget = Selection
 
 	if func then
 		Selection.Hook = func
@@ -1225,12 +1231,68 @@ function Gathering:CreateSelection(page, key, text, selections, func)
 	Selection.Arrow = Arrow
 	Selection.Current = Current
 	Selection.Text = Text
+	Selection.Type = "Selection"
+	Line.Widget = Selection
 
 	if func then
 		Selection.Hook = func
 	end
 
 	tinsert(page, Line)
+end
+
+local function RefreshSettingWidgets(widgets)
+	for i = 1, #widgets do
+		local Widget = widgets[i].Widget
+
+		if (Widget and Widget.Setting) then
+			local Value = Gathering.Settings[Widget.Setting]
+
+			if (Widget.Type == "Checkbox") then
+				if Value then
+					Widget.Tex:SetVertexColor(1, 0.7686, 0.3019)
+				else
+					Widget.Tex:SetVertexColor(0.125, 0.133, 0.145)
+				end
+			elseif (Widget.Type == "EditBox") then
+				Widget:SetText(Value)
+			elseif (Widget.Type == "FontSelection") then
+				Widget.Current:SetFont(SharedMedia:Fetch("font", Value), 12, "")
+				Widget.Current:SetText(Value)
+			elseif (Widget.Type == "Selection") then
+				for Name, SelectionValue in next, Widget.Selections do
+					if (SelectionValue == Value) then
+						Widget.Current:SetText(Name)
+						break
+					end
+				end
+			end
+		end
+	end
+end
+
+function Gathering:RefreshSettingsInterface(selectedProfile)
+	if (not self.GUI) then
+		return
+	end
+
+	for i = 1, #self.Windows do
+		local Page = self.Windows[i]
+
+		if Page.TopWidgets then
+			RefreshSettingWidgets(Page.TopWidgets)
+		end
+
+		if Page.LeftWidgets then
+			RefreshSettingWidgets(Page.LeftWidgets)
+		end
+
+		if Page.RightWidgets then
+			RefreshSettingWidgets(Page.RightWidgets)
+		end
+	end
+
+	self:RefreshProfilesPage(selectedProfile)
 end
 
 local Scroll = function(self)

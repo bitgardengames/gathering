@@ -188,13 +188,7 @@ function Gathering:LoadProfile(name)
 	GatheringProfiles.active = name
 	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
 	self:ApplySettings()
-
-	if (self.GUI) then
-		self.GUI:Hide()
-		self.GUI = nil
-		self:CreateGUI()
-		self:ShowPage(L["Profiles"])
-	end
+	self:RefreshSettingsInterface(name)
 
 	print(format(L["Profile loaded: %s"], name))
 
