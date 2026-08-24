@@ -36,6 +36,147 @@ Gathering.DefaultSettings = {
 	-- Threshold options
 }
 
+local function CopySettings(source)
+	local copy = {}
+
+	for key, value in next, source or {} do
+		copy[key] = value
+	end
+
+	return copy
+end
+
+function Gathering:InitializeProfiles()
+	if (not GatheringProfiles) then
+		GatheringProfiles = {
+			profileKeys = {},
+			profiles = {},
+		}
+	end
+
+	GatheringProfiles.profileKeys = GatheringProfiles.profileKeys or {}
+	GatheringProfiles.profiles = GatheringProfiles.profiles or {}
+
+	local character = UnitName("player") .. " - " .. GetRealmName()
+	local profile = GatheringProfiles.profileKeys[character] or "Default"
+
+	if (not GatheringProfiles.profiles[profile]) then
+		-- GatheringSettings was the database used before profiles were added.
+		GatheringProfiles.profiles[profile] = CopySettings(GatheringSettings)
+	end
+
+	GatheringProfiles.profileKeys[character] = profile
+	self.ProfileKey = character
+	self.ProfileName = profile
+	GatheringSettings = GatheringProfiles.profiles[profile]
+	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
+end
+
+function Gathering:GetProfileNames()
+	local profiles = {}
+
+	for name in next, GatheringProfiles.profiles do
+		profiles[name] = name
+	end
+
+	return profiles
+end
+
+
+function Gathering:ApplyProfile()
+	if (not self.Text) then
+		return
+	end
+
+	self:SetSize(self.Settings.WindowWidth, self.Settings.WindowHeight)
+	self.BagSlots:SetHeight(self.Settings.SlotBarHeight)
+	self:ToggleSlotBar(self.Settings.EnableSlotBar)
+	self:UpdateFontSetting(self.Settings.WindowFont)
+	self:UpdateDisplayMode(self.Settings.DisplayMode)
+	self:UpdateHerbTracking(self.Settings["track-herbs"])
+	self:UpdateClothTracking(self.Settings["track-cloth"])
+	self:UpdateLeatherTracking(self.Settings["track-leather"])
+	self:UpdateOreTracking(self.Settings["track-ore"])
+	self:UpdateJewelcraftingTracking(self.Settings["track-jewelcrafting"])
+	self:UpdateEnchantingTracking(self.Settings["track-enchanting"])
+	self:UpdateCookingTracking(self.Settings["track-cooking"])
+	self:UpdateReagentTracking(self.Settings["track-reagents"])
+	self:UpdateConsumableTracking(self.Settings["track-consumable"])
+	self:UpdateHolidayTracking(self.Settings["track-holiday"])
+	self:UpdateQuestTracking(self.Settings["track-quest"])
+
+	if (self.Settings["hide-idle"] and not self:GetScript("OnUpdate")) then
+		self:Hide()
+	else
+		self:Show()
+	end
+end
+
+function Gathering:SetProfile(name)
+	if (not name or not GatheringProfiles.profiles[name]) then
+		return
+	end
+
+	GatheringProfiles.profileKeys[self.ProfileKey] = name
+	self.ProfileName = name
+	GatheringSettings = GatheringProfiles.profiles[name]
+	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
+	self:ApplyProfile()
+	self:RefreshSettingsWidgets()
+	self:RefreshProfilePage()
+end
+
+function Gathering:CreateProfile(name)
+	name = name and strtrim(name)
+
+	if (not name or name == "" or GatheringProfiles.profiles[name]) then
+		return
+	end
+
+	GatheringProfiles.profiles[name] = {}
+	self:SetProfile(name)
+end
+
+function Gathering:CopyProfile(name)
+	if (not name or name == self.ProfileName or not GatheringProfiles.profiles[name]) then
+		return
+	end
+
+	wipe(GatheringSettings)
+
+	for key, value in next, GatheringProfiles.profiles[name] do
+		GatheringSettings[key] = value
+	end
+
+	self:ApplyProfile()
+	self:RefreshSettingsWidgets()
+	self:RefreshProfilePage()
+end
+
+function Gathering:ResetProfile()
+	wipe(GatheringSettings)
+	self:ApplyProfile()
+	self:RefreshSettingsWidgets()
+	self:RefreshProfilePage()
+end
+
+function Gathering:DeleteProfile(name)
+	if (not name or name == self.ProfileName or not GatheringProfiles.profiles[name]) then
+		return
+	end
+
+	GatheringProfiles.profiles[name] = nil
+	GatheringProfiles.profiles.Default = GatheringProfiles.profiles.Default or {}
+
+	for character, profile in next, GatheringProfiles.profileKeys do
+		if (profile == name) then
+			GatheringProfiles.profileKeys[character] = "Default"
+		end
+	end
+
+	self:RefreshProfilePage()
+end
+
 Gathering.TrackedItemTypes = {
 	[Enum.ItemClass.Consumable] = {},
 	[Enum.ItemClass.Weapon] = {},
