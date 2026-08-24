@@ -526,12 +526,19 @@ function Gathering:CreateProfileButton(page, text, func)
 	Button.Text:SetPoint("CENTER", Button, 0, -0.5)
 	Button.Text:SetFontObject(GatheringFont)
 	Button.Text:SetText(text)
+	Button.Enabled = true
+
+	function Button:SetEnabled(enabled)
+		self.Enabled = enabled
+		self:EnableMouse(enabled)
+		self:SetAlpha(enabled and 1 or 0.45)
+	end
 
 	tinsert(page, Button)
 	return Button
 end
 
-function Gathering:CreateProfileEditBox(page)
+function Gathering:CreateProfileEditBox(page, placeholder)
 	local Line = CreateFrame("Frame", nil, page)
 	Line:SetSize(page:GetWidth() - 8, 22)
 
@@ -542,12 +549,15 @@ function Gathering:CreateProfileEditBox(page)
 	EditBox:EnableKeyboard(true)
 	EditBox:SetMaxLetters(32)
 	EditBox:SetTextInsets(5, 5, 0, 0)
-	EditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-	EditBox:SetScript("OnEnterPressed", function(self)
-		Gathering:CreateProfile(self:GetText())
-		self:SetText("")
-		self:ClearFocus()
+	EditBox.Placeholder = EditBox:CreateFontString(nil, "OVERLAY")
+	EditBox.Placeholder:SetPoint("LEFT", EditBox, 5, 0)
+	EditBox.Placeholder:SetFontObject(GatheringFont)
+	EditBox.Placeholder:SetTextColor(0.55, 0.55, 0.55)
+	EditBox.Placeholder:SetText(placeholder or "Profile name")
+	EditBox:SetScript("OnTextChanged", function(self)
+		self.Placeholder:SetShown(self:GetText() == "")
 	end)
+	EditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 
 	local Tex = EditBox:CreateTexture(nil, "BACKGROUND")
 	Tex:SetAllPoints()
@@ -1541,10 +1551,14 @@ function Gathering:RefreshProfilePage()
 		return
 	end
 
-	page.Current.Text:SetText("Current: " .. self.ProfileName)
+	page.Current.Text:SetText("Active: |cffFFC44D" .. self.ProfileName .. "|r")
 	page.ProfileSelection.Selections = self:GetProfileNames()
 	page.ProfileSelection.Current:SetText(self.ProfileName)
 	page.ManageSelection.Selections = self:GetProfileNames()
+	if page.SelectedProfile and not GatheringProfiles.profiles[page.SelectedProfile] then
+		page.SelectedProfile = nil
+	end
+	page.ManageSelection.Current:SetText(page.SelectedProfile or "Select a source profile")
 
 	if page.ProfileSelection.List then
 		page.ProfileSelection.List:Hide()
@@ -1556,9 +1570,26 @@ function Gathering:RefreshProfilePage()
 		page.ManageSelection.List = nil
 	end
 
-	local canManage = page.SelectedProfile and page.SelectedProfile ~= self.ProfileName
-	page.Copy.Text:SetText(canManage and "Copy from " .. page.SelectedProfile or "Copy from profile")
-	page.Delete.Text:SetText(canManage and "Delete " .. page.SelectedProfile or "Delete profile")
+	local canCopy = page.SelectedProfile and page.SelectedProfile ~= self.ProfileName
+	page.Copy.Text:SetText(canCopy and "Replace with " .. page.SelectedProfile or "Choose a different profile above")
+	page.Copy:SetEnabled(canCopy)
+	page.Delete:SetEnabled(self.ProfileName ~= "Default")
+end
+
+local function ShowProfileConfirmation(key, text, acceptText, callback)
+	StaticPopupDialogs[key] = StaticPopupDialogs[key] or {
+		button2 = CANCEL,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+	}
+
+	local dialog = StaticPopupDialogs[key]
+	dialog.text = text
+	dialog.button1 = acceptText
+	dialog.OnAccept = callback
+	StaticPopup_Show(key)
 end
 
 function Gathering:SetupProfilesPage(page)
@@ -1576,41 +1607,74 @@ function Gathering:SetupProfilesPage(page)
 	RightWidgets:SetBackdrop(Outline)
 	RightWidgets:SetBackdropColor(0.184, 0.192, 0.211)
 
-	self:CreateHeader(LeftWidgets, "Active Profile")
-	page.Current = self:CreateProfileButton(LeftWidgets, "Current: " .. self.ProfileName, function() end)
+	self:CreateHeader(LeftWidgets, "Choose Active Profile")
+	page.Current = self:CreateProfileButton(LeftWidgets, "Active: " .. self.ProfileName, function() end)
+	page.Current:SetEnabled(false)
 	self:CreateSelection(LeftWidgets, "__profile", "", self:GetProfileNames(), function(_, name)
 		Gathering:SetProfile(name)
 	end)
 	page.ProfileSelection = LeftWidgets[#LeftWidgets].Widget
 	page.ProfileSelection.Current:SetText(self.ProfileName)
 
-	self:CreateHeader(LeftWidgets, "New Profile")
-	page.NewProfile = self:CreateProfileEditBox(LeftWidgets)
-	self:CreateProfileButton(LeftWidgets, "Create", function()
-		Gathering:CreateProfile(page.NewProfile:GetText())
-		page.NewProfile:SetText("")
+	self:CreateHeader(LeftWidgets, "Create From Current")
+	page.NewProfile = self:CreateProfileEditBox(LeftWidgets, "New profile name")
+	self:CreateProfileButton(LeftWidgets, "Create and switch", function()
+		if Gathering:CreateProfile(page.NewProfile:GetText(), true) then
+			page.NewProfile:SetText("")
+			page.NewProfile:ClearFocus()
+		end
+	end)
+	page.NewProfile:SetScript("OnEnterPressed", function(self)
+		if Gathering:CreateProfile(self:GetText(), true) then
+			self:SetText("")
+			self:ClearFocus()
+		end
 	end)
 
-	self:CreateHeader(RightWidgets, "Profile Management")
+	self:CreateHeader(RightWidgets, "Manage Active Profile")
+	page.RenameProfile = self:CreateProfileEditBox(RightWidgets, "Rename active profile")
+	self:CreateProfileButton(RightWidgets, "Rename", function()
+		if Gathering:RenameProfile(page.RenameProfile:GetText()) then
+			page.RenameProfile:SetText("")
+			page.RenameProfile:ClearFocus()
+		end
+	end)
+	page.RenameProfile:SetScript("OnEnterPressed", function(self)
+		if Gathering:RenameProfile(self:GetText()) then
+			self:SetText("")
+			self:ClearFocus()
+		end
+	end)
+
+	self:CreateHeader(RightWidgets, "Replace Active Settings")
 	self:CreateSelection(RightWidgets, "__profile", "", self:GetProfileNames(), function(_, name)
 		page.SelectedProfile = name
 		Gathering:RefreshProfilePage()
 	end)
 	page.ManageSelection = RightWidgets[#RightWidgets].Widget
-	page.Copy = self:CreateProfileButton(RightWidgets, "Copy from profile", function()
-		Gathering:CopyProfile(page.SelectedProfile)
+	page.Copy = self:CreateProfileButton(RightWidgets, "Choose a different profile above", function()
+		local source = page.SelectedProfile
+		ShowProfileConfirmation("GATHERING_COPY_PROFILE", "Replace the active profile's settings with those from " .. source .. "?", "Replace", function()
+			Gathering:CopyProfile(source)
+		end)
 	end)
-	page.Delete = self:CreateProfileButton(RightWidgets, "Delete profile", function()
-		local profile = page.SelectedProfile
-		page.SelectedProfile = nil
-		Gathering:DeleteProfile(profile)
+	page.Delete = self:CreateProfileButton(RightWidgets, "Delete active profile", function()
+		local profile = Gathering.ProfileName
+		ShowProfileConfirmation("GATHERING_DELETE_PROFILE", "Delete " .. profile .. "? This cannot be undone.", DELETE, function()
+			page.SelectedProfile = nil
+			Gathering:SetProfile("Default")
+			Gathering:DeleteProfile(profile)
+		end)
 	end)
 	self:CreateProfileButton(RightWidgets, "Reset current profile", function()
-		Gathering:ResetProfile()
+		ShowProfileConfirmation("GATHERING_RESET_PROFILE", "Reset " .. Gathering.ProfileName .. " to the default settings?", RESET, function()
+			Gathering:ResetProfile()
+		end)
 	end)
 
 	self:SortWidgets(LeftWidgets)
 	self:SortWidgets(RightWidgets)
+	self:RefreshProfilePage()
 end
 
 local IgnoreWindowOnMouseWheel = function(self, delta)

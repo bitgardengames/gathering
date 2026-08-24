@@ -126,15 +126,40 @@ function Gathering:SetProfile(name)
 	self:RefreshProfilePage()
 end
 
-function Gathering:CreateProfile(name)
+function Gathering:CreateProfile(name, copyCurrent)
 	name = name and strtrim(name)
 
 	if (not name or name == "" or GatheringProfiles.profiles[name]) then
-		return
+		return false
 	end
 
-	GatheringProfiles.profiles[name] = {}
+	GatheringProfiles.profiles[name] = copyCurrent and CopySettings(GatheringSettings) or {}
 	self:SetProfile(name)
+	return true
+end
+
+function Gathering:RenameProfile(name)
+	name = name and strtrim(name)
+
+	if (not name or name == "" or name == self.ProfileName or GatheringProfiles.profiles[name]) then
+		return false
+	end
+
+	local oldName = self.ProfileName
+	GatheringProfiles.profiles[name] = GatheringProfiles.profiles[oldName]
+	GatheringProfiles.profiles[oldName] = nil
+
+	for character, profile in next, GatheringProfiles.profileKeys do
+		if (profile == oldName) then
+			GatheringProfiles.profileKeys[character] = name
+		end
+	end
+
+	self.ProfileName = name
+	GatheringSettings = GatheringProfiles.profiles[name]
+	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
+	self:RefreshProfilePage()
+	return true
 end
 
 function Gathering:CopyProfile(name)
