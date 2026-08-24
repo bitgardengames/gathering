@@ -3,7 +3,7 @@
 ## Version: 2.71
 ## Title: Gathering
 ## Notes: Track gathered items.
-## SavedVariables: GatheringSettings, GatheringProfiles, GatheringIgnore, GatheringStats
+## SavedVariables: GatheringSettings, GatheringIgnore, GatheringStats
 ## IconTexture: Interface\Icons\Inv_misc_coin_02
 
 Libraries\LibStub.lua
@@ -24,7 +24,6 @@ Languages\zhCN.lua
 Languages\zhTW.lua
 Elements\Tools.lua
 Elements\Settings.lua
-Elements\Profiles.lua
 Elements\Stats.lua
 Elements\Interface.lua
 Elements\Commands.lua
