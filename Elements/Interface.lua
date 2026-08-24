@@ -1505,7 +1505,7 @@ function Gathering:SetupSettingsPage(page)
 	self:SortWidgets(RightWidgets)
 end
 
-function Gathering:RefreshSettingsWidgets(notify)
+function Gathering:RefreshSettingsWidgets()
 	if (not self.Windows) then
 		return
 	end
@@ -1533,7 +1533,7 @@ function Gathering:RefreshSettingsWidgets(notify)
 					end
 				end
 
-				if (notify and widget.Hook) then
+				if (widget.Hook) then
 					widget:Hook(value)
 				end
 			end
