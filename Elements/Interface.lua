@@ -553,7 +553,7 @@ function Gathering:CreateProfileEditBox(page, placeholder)
 	EditBox.Placeholder:SetPoint("LEFT", EditBox, 5, 0)
 	EditBox.Placeholder:SetFontObject(GatheringFont)
 	EditBox.Placeholder:SetTextColor(0.55, 0.55, 0.55)
-	EditBox.Placeholder:SetText(placeholder or "Profile name")
+	EditBox.Placeholder:SetText(placeholder or L["Profile name"])
 	EditBox:SetScript("OnTextChanged", function(self)
 		self.Placeholder:SetShown(self:GetText() == "")
 	end)
@@ -1549,7 +1549,7 @@ function Gathering:RefreshSettingsWidgets()
 end
 
 function Gathering:RefreshProfilePage()
-	local page = self.Windows and self:GetPage("Profiles")
+	local page = self.Windows and self:GetPage(L["Profiles"])
 
 	if (not page) then
 		return
@@ -1597,15 +1597,15 @@ function Gathering:SetupProfilesPage(page)
 	RightWidgets:SetBackdrop(Outline)
 	RightWidgets:SetBackdropColor(0.184, 0.192, 0.211)
 
-	self:CreateHeader(LeftWidgets, "Active Profile")
+	self:CreateHeader(LeftWidgets, L["Active Profile"])
 	self:CreateSelection(LeftWidgets, "__profile", "", self:GetProfileNames(), function(_, name)
 		Gathering:SetProfile(name)
 	end)
 	page.ProfileSelection = LeftWidgets[#LeftWidgets].Widget
 	page.ProfileSelection.Current:SetText(self.ProfileName)
 
-	self:CreateHeader(LeftWidgets, "Create Profile")
-	page.NewProfile = self:CreateProfileEditBox(LeftWidgets, "New profile name")
+	self:CreateHeader(LeftWidgets, L["Create Profile"])
+	page.NewProfile = self:CreateProfileEditBox(LeftWidgets, L["New profile name"])
 	page.NewProfile:SetScript("OnEnterPressed", function(self)
 		if Gathering:CreateProfile(self:GetText()) then
 			self:SetText("")
@@ -1613,8 +1613,8 @@ function Gathering:SetupProfilesPage(page)
 		end
 	end)
 
-	self:CreateHeader(RightWidgets, "Rename Active Profile")
-	page.RenameProfile = self:CreateProfileEditBox(RightWidgets, "Rename active profile")
+	self:CreateHeader(RightWidgets, L["Rename Active Profile"])
+	page.RenameProfile = self:CreateProfileEditBox(RightWidgets, L["Rename active profile"])
 	page.RenameProfile:SetScript("OnEnterPressed", function(self)
 		if Gathering:RenameProfile(self:GetText()) then
 			self:SetText("")
@@ -1622,15 +1622,15 @@ function Gathering:SetupProfilesPage(page)
 		end
 	end)
 
-	self:CreateHeader(RightWidgets, "Active Profile Actions")
-	self:CreateProfileButton(RightWidgets, "Reset active profile", function()
-		ShowProfileConfirmation("GATHERING_RESET_PROFILE", "Reset " .. Gathering.ProfileName .. " to the default settings?", RESET, function()
+	self:CreateHeader(RightWidgets, L["Active Profile Actions"])
+	self:CreateProfileButton(RightWidgets, L["Reset active profile"], function()
+		ShowProfileConfirmation("GATHERING_RESET_PROFILE", format(L["Reset %s to the default settings?"], Gathering.ProfileName), RESET, function()
 			Gathering:ResetProfile()
 		end)
 	end)
-	page.Delete = self:CreateProfileButton(RightWidgets, "Delete active profile", function()
+	page.Delete = self:CreateProfileButton(RightWidgets, L["Delete active profile"], function()
 		local profile = Gathering.ProfileName
-		ShowProfileConfirmation("GATHERING_DELETE_PROFILE", "Delete " .. profile .. "? This cannot be undone.", DELETE, function()
+		ShowProfileConfirmation("GATHERING_DELETE_PROFILE", format(L["Delete %s? This cannot be undone."], profile), DELETE, function()
 			Gathering:SetProfile("Default")
 			Gathering:DeleteProfile(profile)
 		end)
@@ -2047,7 +2047,7 @@ function Gathering:CreateGUI()
 	local SettingsPage = self:AddPage(L["Settings"])
 	self:SetupSettingsPage(SettingsPage)
 
-	local ProfilesPage = self:AddPage("Profiles")
+	local ProfilesPage = self:AddPage(L["Profiles"])
 	self:SetupProfilesPage(ProfilesPage)
 
 	local TrackingPage = self:AddPage(L["Tracking"])
