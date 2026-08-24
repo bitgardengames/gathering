@@ -1606,13 +1606,18 @@ function Gathering:SetupProfilesPage(page)
 	NameBox:SetPoint("TOPLEFT", LeftWidgets, 4, -78)
 	NameBox:SetFontObject(GatheringFont)
 	NameBox:SetAutoFocus(false)
-	NameBox:SetMaxLetters(32)
 	NameBox:SetTextInsets(5, 5, 0, 0)
 	NameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 	local NameTexture = NameBox:CreateTexture(nil, "BACKGROUND")
 	NameTexture:SetAllPoints()
 	NameTexture:SetTexture(BlankTexture)
 	NameTexture:SetVertexColor(0.125, 0.133, 0.145)
+
+	local NameStatus = LeftWidgets:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	NameStatus:SetPoint("TOPLEFT", NameBox, "BOTTOMLEFT", 4, -2)
+	NameStatus:SetSize(183, 24)
+	NameStatus:SetJustifyH("LEFT")
+	NameStatus:SetJustifyV("TOP")
 
 	local function CreateProfileButton(text, x, y, width, action)
 		local button = CreateFrame("Frame", nil, LeftWidgets, "BackdropTemplate")
@@ -1631,7 +1636,7 @@ function Gathering:SetupProfilesPage(page)
 	end
 
 	local SaveButton
-	local LoadButton = CreateProfileButton(L["Load"], 102, -108, 93, function() self:LoadProfile(page.Selected) end)
+	local LoadButton = CreateProfileButton(L["Load"], 102, -130, 93, function() self:LoadProfile(page.Selected) end)
 	local RenameButton
 	local CopyButton
 	local DeleteButton
@@ -1643,10 +1648,18 @@ function Gathering:SetupProfilesPage(page)
 	end
 
 	function page:UpdateActions()
-		local normalizedName = Gathering:NormalizeProfileName(NameBox:GetText())
+		local normalizedName, validationMessage = Gathering:NormalizeProfileName(NameBox:GetText())
 		local hasSelection = self.Selected and GatheringProfiles.profiles[self.Selected] ~= nil
 		local nameExists = normalizedName and GatheringProfiles.profiles[normalizedName] ~= nil
 		local hasNewDestination = hasSelection and normalizedName and not nameExists
+		local statusMessage = validationMessage
+
+		if nameExists then
+			statusMessage = L["Existing profile: Save overwrites; rename/copy need a new name."]
+		end
+
+		NameStatus:SetText(statusMessage or "")
+		NameStatus:SetTextColor(1, nameExists and 0.768 or 0.25, nameExists and 0.302 or 0.25)
 		SaveButton.Text:SetText(nameExists and L["Save Changes"] or L["Create"])
 		SetButtonEnabled(SaveButton, not self.ConfirmationPending and normalizedName ~= nil)
 		SetButtonEnabled(LoadButton, not self.ConfirmationPending and hasSelection)
@@ -1716,10 +1729,10 @@ function Gathering:SetupProfilesPage(page)
 		end, FinishConfirmation)
 	end
 
-	SaveButton = CreateProfileButton(L["Create"], 4, -108, 93, SaveProfile)
-	RenameButton = CreateProfileButton(L["Rename"], 4, -134, 60, RenameProfile)
-	CopyButton = CreateProfileButton(L["Copy"], 69, -134, 60, CopyProfile)
-	DeleteButton = CreateProfileButton(L["Delete"], 134, -134, 60, DeleteProfile)
+	SaveButton = CreateProfileButton(L["Create"], 4, -130, 93, SaveProfile)
+	RenameButton = CreateProfileButton(L["Rename"], 4, -156, 60, RenameProfile)
+	CopyButton = CreateProfileButton(L["Copy"], 69, -156, 60, CopyProfile)
+	DeleteButton = CreateProfileButton(L["Delete"], 134, -156, 60, DeleteProfile)
 	NameBox:SetScript("OnEnterPressed", function(self)
 		SaveProfile()
 		self:ClearFocus()
