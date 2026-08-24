@@ -88,6 +88,14 @@ function Gathering:ApplyProfile()
 		return
 	end
 
+	-- Once the settings controls have been created, they are the source of truth
+	-- for which settings have side effects. Refreshing with notifications keeps
+	-- both the controls and every registered hook in sync when a profile changes.
+	if (self.Windows) then
+		self:RefreshSettingsWidgets(true)
+		return
+	end
+
 	self:SetSize(self.Settings.WindowWidth, self.Settings.WindowHeight)
 	self.BagSlots:SetHeight(self.Settings.SlotBarHeight)
 	self:ToggleSlotBar(self.Settings.EnableSlotBar)
@@ -122,7 +130,6 @@ function Gathering:SetProfile(name)
 	GatheringSettings = GatheringProfiles.profiles[name]
 	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
 	self:ApplyProfile()
-	self:RefreshSettingsWidgets()
 	self:RefreshProfilePage()
 end
 
@@ -174,14 +181,12 @@ function Gathering:CopyProfile(name)
 	end
 
 	self:ApplyProfile()
-	self:RefreshSettingsWidgets()
 	self:RefreshProfilePage()
 end
 
 function Gathering:ResetProfile()
 	wipe(GatheringSettings)
 	self:ApplyProfile()
-	self:RefreshSettingsWidgets()
 	self:RefreshProfilePage()
 end
 
