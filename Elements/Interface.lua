@@ -1551,28 +1551,14 @@ function Gathering:RefreshProfilePage()
 		return
 	end
 
-	page.Current.Text:SetText("Active: |cffFFC44D" .. self.ProfileName .. "|r")
 	page.ProfileSelection.Selections = self:GetProfileNames()
 	page.ProfileSelection.Current:SetText(self.ProfileName)
-	page.ManageSelection.Selections = self:GetProfileNames()
-	if page.SelectedProfile and not GatheringProfiles.profiles[page.SelectedProfile] then
-		page.SelectedProfile = nil
-	end
-	page.ManageSelection.Current:SetText(page.SelectedProfile or "Select a source profile")
 
 	if page.ProfileSelection.List then
 		page.ProfileSelection.List:Hide()
 		page.ProfileSelection.List = nil
 	end
 
-	if page.ManageSelection.List then
-		page.ManageSelection.List:Hide()
-		page.ManageSelection.List = nil
-	end
-
-	local canCopy = page.SelectedProfile and page.SelectedProfile ~= self.ProfileName
-	page.Copy.Text:SetText(canCopy and "Replace with " .. page.SelectedProfile or "Choose a different profile above")
-	page.Copy:SetEnabled(canCopy)
 	page.Delete:SetEnabled(self.ProfileName ~= "Default")
 end
 
@@ -1607,18 +1593,16 @@ function Gathering:SetupProfilesPage(page)
 	RightWidgets:SetBackdrop(Outline)
 	RightWidgets:SetBackdropColor(0.184, 0.192, 0.211)
 
-	self:CreateHeader(LeftWidgets, "Choose Active Profile")
-	page.Current = self:CreateProfileButton(LeftWidgets, "Active: " .. self.ProfileName, function() end)
-	page.Current:SetEnabled(false)
+	self:CreateHeader(LeftWidgets, "Active Profile")
 	self:CreateSelection(LeftWidgets, "__profile", "", self:GetProfileNames(), function(_, name)
 		Gathering:SetProfile(name)
 	end)
 	page.ProfileSelection = LeftWidgets[#LeftWidgets].Widget
 	page.ProfileSelection.Current:SetText(self.ProfileName)
 
-	self:CreateHeader(LeftWidgets, "Create From Current")
+	self:CreateHeader(LeftWidgets, "Create a Copy")
 	page.NewProfile = self:CreateProfileEditBox(LeftWidgets, "New profile name")
-	self:CreateProfileButton(LeftWidgets, "Create and switch", function()
+	self:CreateProfileButton(LeftWidgets, "Create from active profile", function()
 		if Gathering:CreateProfile(page.NewProfile:GetText(), true) then
 			page.NewProfile:SetText("")
 			page.NewProfile:ClearFocus()
@@ -1631,7 +1615,7 @@ function Gathering:SetupProfilesPage(page)
 		end
 	end)
 
-	self:CreateHeader(RightWidgets, "Manage Active Profile")
+	self:CreateHeader(RightWidgets, "Rename Active Profile")
 	page.RenameProfile = self:CreateProfileEditBox(RightWidgets, "Rename active profile")
 	self:CreateProfileButton(RightWidgets, "Rename", function()
 		if Gathering:RenameProfile(page.RenameProfile:GetText()) then
@@ -1646,29 +1630,17 @@ function Gathering:SetupProfilesPage(page)
 		end
 	end)
 
-	self:CreateHeader(RightWidgets, "Replace Active Settings")
-	self:CreateSelection(RightWidgets, "__profile", "", self:GetProfileNames(), function(_, name)
-		page.SelectedProfile = name
-		Gathering:RefreshProfilePage()
-	end)
-	page.ManageSelection = RightWidgets[#RightWidgets].Widget
-	page.Copy = self:CreateProfileButton(RightWidgets, "Choose a different profile above", function()
-		local source = page.SelectedProfile
-		ShowProfileConfirmation("GATHERING_COPY_PROFILE", "Replace the active profile's settings with those from " .. source .. "?", "Replace", function()
-			Gathering:CopyProfile(source)
+	self:CreateHeader(RightWidgets, "Active Profile Actions")
+	self:CreateProfileButton(RightWidgets, "Reset active profile", function()
+		ShowProfileConfirmation("GATHERING_RESET_PROFILE", "Reset " .. Gathering.ProfileName .. " to the default settings?", RESET, function()
+			Gathering:ResetProfile()
 		end)
 	end)
 	page.Delete = self:CreateProfileButton(RightWidgets, "Delete active profile", function()
 		local profile = Gathering.ProfileName
 		ShowProfileConfirmation("GATHERING_DELETE_PROFILE", "Delete " .. profile .. "? This cannot be undone.", DELETE, function()
-			page.SelectedProfile = nil
 			Gathering:SetProfile("Default")
 			Gathering:DeleteProfile(profile)
-		end)
-	end)
-	self:CreateProfileButton(RightWidgets, "Reset current profile", function()
-		ShowProfileConfirmation("GATHERING_RESET_PROFILE", "Reset " .. Gathering.ProfileName .. " to the default settings?", RESET, function()
-			Gathering:ResetProfile()
 		end)
 	end)
 
