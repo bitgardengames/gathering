@@ -7,6 +7,7 @@ local BlankTexture = "Interface\\AddOns\\Gathering\\Assets\\HydraUIBlank.tga"
 local BarTexture = "Interface\\AddOns\\Gathering\\Assets\\HydraUI4.tga"
 local MaxWidgets = 11
 local MaxSelections = 8
+local MaxProfileRows = 8
 
 SharedMedia:Register("font", "PT Sans", "Interface\\Addons\\Gathering\\Assets\\PTSans.ttf")
 SharedMedia:Register("statusbar", "HydraUI 4", BarTexture)
@@ -1594,14 +1595,14 @@ function Gathering:RefreshProfilesPage(selected)
 
 	if selected then
 		for index, name in ipairs(names) do
-			if (name == selected and (index < (page.Offset or 1) or index > (page.Offset or 1) + 8)) then
-				page.Offset = math.max(1, index - 8)
+			if (name == selected and (index < (page.Offset or 1) or index >= (page.Offset or 1) + MaxProfileRows)) then
+				page.Offset = math.max(1, index - MaxProfileRows + 1)
 				break
 			end
 		end
 	end
 
-	page.Offset = math.min(page.Offset or 1, math.max(1, #names - 8))
+	page.Offset = math.min(page.Offset or 1, math.max(1, #names - MaxProfileRows + 1))
 
 	for i = 1, #page.Rows do
 		local row = page.Rows[i]
@@ -1624,7 +1625,7 @@ function Gathering:RefreshProfilesPage(selected)
 	end
 
 	if page.ScrollBar then
-		page.ScrollBar:SetMinMaxValues(1, math.max(1, #names - 8))
+		page.ScrollBar:SetMinMaxValues(1, math.max(1, #names - MaxProfileRows + 1))
 		page.ScrollBar:SetValue(page.Offset)
 	end
 
@@ -1645,15 +1646,22 @@ function Gathering:SetupProfilesPage(page)
 	RightWidgets:SetPoint("LEFT", LeftWidgets, "RIGHT", 6, 0)
 	RightWidgets:SetBackdrop(Outline)
 	RightWidgets:SetBackdropColor(0.184, 0.192, 0.211)
+	RightWidgets:EnableMouse(true)
 
 	self:CreateHeader(LeftWidgets, L["Profiles"])
+	self:CreateHeader(RightWidgets, L["Profiles"])
 	self:SortWidgets(LeftWidgets)
+	self:SortWidgets(RightWidgets)
 
-	local Current = CreateFrame("Frame", nil, LeftWidgets)
+	local Current = CreateFrame("Frame", nil, LeftWidgets, "BackdropTemplate")
 	Current:SetSize(191, 22)
 	Current:SetPoint("TOPLEFT", LeftWidgets, 4, -30)
+	Current:SetBackdrop(Outline)
+	Current:SetBackdropColor(0.184, 0.192, 0.211)
+	Current:SetScript("OnEnter", self.PageTabOnEnter)
+	Current:SetScript("OnLeave", self.PageTabOnLeave)
 	Current.Text = Current:CreateFontString(nil, "OVERLAY")
-	Current.Text:SetPoint("LEFT", Current, 4, 0)
+	Current.Text:SetPoint("LEFT", Current, 5, 0)
 	Current.Text:SetFontObject(GatheringFont)
 	Current.Text:SetTextColor(1, 0.768, 0.302)
 	page.Current = Current
@@ -1661,6 +1669,7 @@ function Gathering:SetupProfilesPage(page)
 	local NameLabel = LeftWidgets:CreateFontString(nil, "OVERLAY")
 	NameLabel:SetPoint("TOPLEFT", LeftWidgets, 8, -62)
 	NameLabel:SetFontObject(GatheringFont)
+	NameLabel:SetTextColor(0.75, 0.75, 0.75)
 	NameLabel:SetText(L["Profile Name"])
 
 	local NameBox = CreateFrame("EditBox", nil, LeftWidgets)
@@ -1671,22 +1680,31 @@ function Gathering:SetupProfilesPage(page)
 	NameBox:SetMaxLetters(32)
 	NameBox:SetTextInsets(5, 5, 0, 0)
 	NameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	NameBox:SetScript("OnEnter", function(self) self.Texture:SetVertexColor(0.184, 0.192, 0.211) end)
+	NameBox:SetScript("OnLeave", function(self) self.Texture:SetVertexColor(0.125, 0.133, 0.145) end)
 	local NameTexture = NameBox:CreateTexture(nil, "BACKGROUND")
 	NameTexture:SetAllPoints()
 	NameTexture:SetTexture(BlankTexture)
 	NameTexture:SetVertexColor(0.125, 0.133, 0.145)
+	NameBox.Texture = NameTexture
 
 	local function CreateProfileButton(text, x, y, width, action)
 		local button = CreateFrame("Frame", nil, LeftWidgets, "BackdropTemplate")
 		button:SetSize(width, 22)
 		button:SetPoint("TOPLEFT", LeftWidgets, "TOPLEFT", x, y)
 		button:SetBackdrop(Outline)
-		button:SetBackdropColor(0.25, 0.266, 0.294)
+		button:SetBackdropColor(0.184, 0.192, 0.211)
 		button:SetScript("OnEnter", self.PageTabOnEnter)
 		button:SetScript("OnLeave", self.PageTabOnLeave)
-		button:SetScript("OnMouseUp", action)
+		button:SetScript("OnMouseUp", function(self)
+			self.Text:SetPoint("CENTER", self, 0, -0.5)
+			action()
+		end)
+		button:SetScript("OnMouseDown", function(self)
+			self.Text:SetPoint("CENTER", self, 1, -1.5)
+		end)
 		button.Text = button:CreateFontString(nil, "OVERLAY")
-		button.Text:SetPoint("CENTER")
+		button.Text:SetPoint("CENTER", button, 0, -0.5)
 		button.Text:SetFontObject(GatheringFont)
 		button.Text:SetText(text)
 		return button
@@ -1700,7 +1718,7 @@ function Gathering:SetupProfilesPage(page)
 
 	local function SetButtonEnabled(button, enabled)
 		button:EnableMouse(enabled)
-		button:SetBackdropColor(enabled and 0.25 or 0.16, enabled and 0.266 or 0.16, enabled and 0.294 or 0.16)
+		button:SetBackdropColor(enabled and 0.184 or 0.16, enabled and 0.192 or 0.16, enabled and 0.211 or 0.16)
 		button.Text:SetTextColor(enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
 	end
 
@@ -1790,10 +1808,10 @@ function Gathering:SetupProfilesPage(page)
 	NameBox:SetScript("OnTextChanged", function() page:UpdateActions() end)
 	page.Rows = {}
 
-	for i = 1, 9 do
+	for i = 1, MaxProfileRows do
 		local row = CreateFrame("Frame", nil, RightWidgets, "BackdropTemplate")
 		row:SetSize(190, 22)
-		row:SetPoint("TOPLEFT", RightWidgets, 4, -4 - ((i - 1) * 26))
+		row:SetPoint("TOPLEFT", RightWidgets, 4, -30 - ((i - 1) * 26))
 		row:SetBackdrop(Outline)
 		row:SetScript("OnEnter", function(self)
 			if (self.ProfileName ~= page.Selected) then
@@ -1818,7 +1836,7 @@ function Gathering:SetupProfilesPage(page)
 
 	local ScrollBar = CreateFrame("Slider", nil, RightWidgets)
 	ScrollBar:SetWidth(8)
-	ScrollBar:SetPoint("TOPRIGHT", RightWidgets, -2, -4)
+	ScrollBar:SetPoint("TOPRIGHT", RightWidgets, -2, -30)
 	ScrollBar:SetPoint("BOTTOMRIGHT", RightWidgets, -2, 4)
 	ScrollBar:SetThumbTexture(BlankTexture)
 	ScrollBar:SetOrientation("VERTICAL")
