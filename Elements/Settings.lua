@@ -49,37 +49,37 @@ end
 function Gathering:InitializeProfiles()
 	if (not GatheringProfiles) then
 		GatheringProfiles = {
-			profileKeys = {},
-			profiles = {},
+			ProfileKeys = {},
+			Profiles = {},
 		}
 	end
 
-	GatheringProfiles.profileKeys = GatheringProfiles.profileKeys or {}
-	GatheringProfiles.profiles = GatheringProfiles.profiles or {}
+	GatheringProfiles.ProfileKeys = GatheringProfiles.ProfileKeys or {}
+	GatheringProfiles.Profiles = GatheringProfiles.Profiles or {}
 
-	local character = UnitName("player") .. " - " .. GetRealmName()
-	local profile = GatheringProfiles.profileKeys[character] or "Default"
+	local Character = UnitName("player") .. " - " .. GetRealmName()
+	local Profile = GatheringProfiles.ProfileKeys[Character] or "Default"
 
-	if (not GatheringProfiles.profiles[profile]) then
-		-- GatheringSettings was the database used before profiles were added.
-		GatheringProfiles.profiles[profile] = CopySettings(GatheringSettings)
+	if (not GatheringProfiles.Profiles[Profile]) then
+		-- GatheringSettings was the database used before profiles were added
+		GatheringProfiles.Profiles[Profile] = CopySettings(GatheringSettings)
 	end
 
-	GatheringProfiles.profileKeys[character] = profile
-	self.ProfileKey = character
-	self.ProfileName = profile
-	GatheringSettings = GatheringProfiles.profiles[profile]
+	GatheringProfiles.ProfileKeys[Character] = Profile
+	self.ProfileKey = Character
+	self.ProfileName = Profile
+	GatheringSettings = GatheringProfiles.Profiles[Profile]
 	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
 end
 
 function Gathering:GetProfileNames()
-	local profiles = {}
+	local Profiles = {}
 
-	for name in next, GatheringProfiles.profiles do
-		profiles[name] = name
+	for Name in next, GatheringProfiles.Profiles do
+		Profiles[Name] = Name
 	end
 
-	return profiles
+	return Profiles
 end
 
 
@@ -88,11 +88,9 @@ function Gathering:ApplyProfile()
 		return
 	end
 
-	-- Once the settings controls have been created, they are the source of truth
-	-- for which settings have side effects. Refreshing with notifications keeps
-	-- both the controls and every registered hook in sync when a profile changes.
-	if (self.Windows) then
+	if self.Windows then
 		self:RefreshSettingsWidgets()
+
 		return
 	end
 
@@ -121,13 +119,13 @@ function Gathering:ApplyProfile()
 end
 
 function Gathering:SetProfile(name)
-	if (not name or not GatheringProfiles.profiles[name]) then
+	if (not name or not GatheringProfiles.Profiles[name]) then
 		return
 	end
 
-	GatheringProfiles.profileKeys[self.ProfileKey] = name
+	GatheringProfiles.ProfileKeys[self.ProfileKey] = name
 	self.ProfileName = name
-	GatheringSettings = GatheringProfiles.profiles[name]
+	GatheringSettings = GatheringProfiles.Profiles[name]
 	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
 	self:ApplyProfile()
 	self:RefreshProfilePage()
@@ -136,47 +134,50 @@ end
 function Gathering:CreateProfile(name)
 	name = name and strtrim(name)
 
-	if (not name or name == "" or GatheringProfiles.profiles[name]) then
+	if (not name or name == "" or GatheringProfiles.Profiles[name]) then
 		return false
 	end
 
-	GatheringProfiles.profiles[name] = {}
+	GatheringProfiles.Profiles[name] = {}
 	self:SetProfile(name)
+
 	return true
 end
 
 function Gathering:RenameProfile(name)
 	name = name and strtrim(name)
 
-	if (not name or name == "" or name == self.ProfileName or GatheringProfiles.profiles[name]) then
+	if (not name or name == "" or name == self.ProfileName or GatheringProfiles.Profiles[name]) then
 		return false
 	end
 
-	local oldName = self.ProfileName
-	GatheringProfiles.profiles[name] = GatheringProfiles.profiles[oldName]
-	GatheringProfiles.profiles[oldName] = nil
+	local OldName = self.ProfileName
 
-	for character, profile in next, GatheringProfiles.profileKeys do
-		if (profile == oldName) then
-			GatheringProfiles.profileKeys[character] = name
+	GatheringProfiles.Profiles[name] = GatheringProfiles.Profiles[OldName]
+	GatheringProfiles.Profiles[OldName] = nil
+
+	for character, profile in next, GatheringProfiles.ProfileKeys do
+		if (profile == OldName) then
+			GatheringProfiles.ProfileKeys[character] = name
 		end
 	end
 
 	self.ProfileName = name
-	GatheringSettings = GatheringProfiles.profiles[name]
+	GatheringSettings = GatheringProfiles.Profiles[name]
 	self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
 	self:RefreshProfilePage()
+
 	return true
 end
 
 function Gathering:CopyProfile(name)
-	if (not name or name == self.ProfileName or not GatheringProfiles.profiles[name]) then
+	if (not name or name == self.ProfileName or not GatheringProfiles.Profiles[name]) then
 		return
 	end
 
 	wipe(GatheringSettings)
 
-	for key, value in next, GatheringProfiles.profiles[name] do
+	for key, value in next, GatheringProfiles.Profiles[name] do
 		GatheringSettings[key] = value
 	end
 
@@ -191,25 +192,21 @@ function Gathering:ResetProfile()
 end
 
 function Gathering:DeleteProfile(name)
-	if (not name or name == "Default" or not GatheringProfiles.profiles[name]) then
+	if (not name or name == "Default" or not GatheringProfiles.Profiles[name]) then
 		return
 	end
 
-	GatheringProfiles.profiles.Default = GatheringProfiles.profiles.Default or {}
+	GatheringProfiles.Profiles.Default = GatheringProfiles.Profiles.Default or {}
 
-	-- Profile deletion is also part of the public profile API, so do not rely on
-	-- the settings page to switch away from the active profile first. Keeping the
-	-- fallback table alive while SetProfile applies it also prevents Settings and
-	-- GatheringSettings from retaining a reference to the table being deleted.
 	if (name == self.ProfileName) then
 		self:SetProfile("Default")
 	end
 
-	GatheringProfiles.profiles[name] = nil
+	GatheringProfiles.Profiles[name] = nil
 
-	for character, profile in next, GatheringProfiles.profileKeys do
+	for character, profile in next, GatheringProfiles.ProfileKeys do
 		if (profile == name) then
-			GatheringProfiles.profileKeys[character] = "Default"
+			GatheringProfiles.ProfileKeys[character] = "Default"
 		end
 	end
 
