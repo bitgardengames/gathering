@@ -500,6 +500,10 @@ function Gathering:CreateHeader(page, text)
 end
 
 function Gathering:UpdateSettingValue(key, value)
+	if (key == "__profile") then
+		return
+	end
+
 	if (value == self.DefaultSettings[key]) then
 		GatheringSettings[key] = nil
 	else
@@ -507,6 +511,52 @@ function Gathering:UpdateSettingValue(key, value)
 	end
 
 	self.Settings[key] = value
+end
+
+function Gathering:CreateProfileButton(page, text, func)
+	local Button = CreateFrame("Frame", nil, page, "BackdropTemplate")
+	Button:SetSize(page:GetWidth() - 8, 22)
+	Button:SetBackdrop(Outline)
+	Button:SetBackdropColor(0.184, 0.192, 0.211)
+	Button:SetScript("OnEnter", self.PageTabOnEnter)
+	Button:SetScript("OnLeave", self.PageTabOnLeave)
+	Button:SetScript("OnMouseUp", func)
+
+	Button.Text = Button:CreateFontString(nil, "OVERLAY")
+	Button.Text:SetPoint("CENTER", Button, 0, -0.5)
+	Button.Text:SetFontObject(GatheringFont)
+	Button.Text:SetText(text)
+
+	tinsert(page, Button)
+	return Button
+end
+
+function Gathering:CreateProfileEditBox(page)
+	local Line = CreateFrame("Frame", nil, page)
+	Line:SetSize(page:GetWidth() - 8, 22)
+
+	local EditBox = CreateFrame("EditBox", nil, Line)
+	EditBox:SetAllPoints()
+	EditBox:SetFontObject(GatheringFont)
+	EditBox:SetAutoFocus(false)
+	EditBox:EnableKeyboard(true)
+	EditBox:SetMaxLetters(32)
+	EditBox:SetTextInsets(5, 5, 0, 0)
+	EditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	EditBox:SetScript("OnEnterPressed", function(self)
+		Gathering:CreateProfile(self:GetText())
+		self:SetText("")
+		self:ClearFocus()
+	end)
+
+	local Tex = EditBox:CreateTexture(nil, "BACKGROUND")
+	Tex:SetAllPoints()
+	Tex:SetTexture(BlankTexture)
+	Tex:SetVertexColor(0.125, 0.133, 0.145)
+
+	Line.Widget = EditBox
+	tinsert(page, Line)
+	return EditBox
 end
 
 function Gathering:CheckBoxOnMouseUp()
@@ -1445,6 +1495,124 @@ function Gathering:SetupSettingsPage(page)
 	self:SortWidgets(RightWidgets)
 end
 
+function Gathering:RefreshSettingsWidgets()
+	if (not self.Windows) then
+		return
+	end
+
+	local function Refresh(container)
+		for i = 1, #container do
+			local widget = container[i].Widget
+
+			if widget and widget.Setting and widget.Setting ~= "__profile" then
+				local value = Gathering.Settings[widget.Setting]
+
+				if (widget.Type == "Checkbox") then
+					widget.Tex:SetVertexColor(value and 1 or 0.125, value and 0.7686 or 0.133, value and 0.3019 or 0.145)
+				elseif (widget.Type == "EditBox") then
+					widget:SetText(value)
+				elseif (widget.Type == "FontSelection") then
+					widget.Current:SetText(value)
+					widget.Current:SetFont(SharedMedia:Fetch("font", value), 12, "")
+				elseif (widget.Type == "Selection") then
+					for label, selectionValue in next, widget.Selections do
+						if (selectionValue == value) then
+							widget.Current:SetText(label)
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+
+	for i = 1, #self.Windows do
+		local page = self.Windows[i]
+		if page.TopWidgets then Refresh(page.TopWidgets) end
+		if page.LeftWidgets then Refresh(page.LeftWidgets) end
+		if page.RightWidgets then Refresh(page.RightWidgets) end
+	end
+end
+
+function Gathering:RefreshProfilePage()
+	local page = self.Windows and self:GetPage("Profiles")
+
+	if (not page) then
+		return
+	end
+
+	page.Current.Text:SetText("Current: " .. self.ProfileName)
+	page.ProfileSelection.Selections = self:GetProfileNames()
+	page.ProfileSelection.Current:SetText(self.ProfileName)
+	page.ManageSelection.Selections = self:GetProfileNames()
+
+	if page.ProfileSelection.List then
+		page.ProfileSelection.List:Hide()
+		page.ProfileSelection.List = nil
+	end
+
+	if page.ManageSelection.List then
+		page.ManageSelection.List:Hide()
+		page.ManageSelection.List = nil
+	end
+
+	local canManage = page.SelectedProfile and page.SelectedProfile ~= self.ProfileName
+	page.Copy.Text:SetText(canManage and "Copy from " .. page.SelectedProfile or "Copy from profile")
+	page.Delete.Text:SetText(canManage and "Delete " .. page.SelectedProfile or "Delete profile")
+end
+
+function Gathering:SetupProfilesPage(page)
+	local LeftWidgets = CreateFrame("Frame", nil, page, "BackdropTemplate")
+	LeftWidgets:SetSize(199, 246)
+	LeftWidgets:SetPoint("LEFT", page, 0, 0)
+	LeftWidgets:EnableMouse(true)
+	LeftWidgets:SetBackdrop(Outline)
+	LeftWidgets:SetBackdropColor(0.184, 0.192, 0.211)
+
+	local RightWidgets = CreateFrame("Frame", nil, page, "BackdropTemplate")
+	RightWidgets:SetSize(198, 246)
+	RightWidgets:SetPoint("LEFT", LeftWidgets, "RIGHT", 6, 0)
+	RightWidgets:EnableMouse(true)
+	RightWidgets:SetBackdrop(Outline)
+	RightWidgets:SetBackdropColor(0.184, 0.192, 0.211)
+
+	self:CreateHeader(LeftWidgets, "Active Profile")
+	page.Current = self:CreateProfileButton(LeftWidgets, "Current: " .. self.ProfileName, function() end)
+	self:CreateSelection(LeftWidgets, "__profile", "", self:GetProfileNames(), function(_, name)
+		Gathering:SetProfile(name)
+	end)
+	page.ProfileSelection = LeftWidgets[#LeftWidgets].Widget
+	page.ProfileSelection.Current:SetText(self.ProfileName)
+
+	self:CreateHeader(LeftWidgets, "New Profile")
+	page.NewProfile = self:CreateProfileEditBox(LeftWidgets)
+	self:CreateProfileButton(LeftWidgets, "Create", function()
+		Gathering:CreateProfile(page.NewProfile:GetText())
+		page.NewProfile:SetText("")
+	end)
+
+	self:CreateHeader(RightWidgets, "Profile Management")
+	self:CreateSelection(RightWidgets, "__profile", "", self:GetProfileNames(), function(_, name)
+		page.SelectedProfile = name
+		Gathering:RefreshProfilePage()
+	end)
+	page.ManageSelection = RightWidgets[#RightWidgets].Widget
+	page.Copy = self:CreateProfileButton(RightWidgets, "Copy from profile", function()
+		Gathering:CopyProfile(page.SelectedProfile)
+	end)
+	page.Delete = self:CreateProfileButton(RightWidgets, "Delete profile", function()
+		local profile = page.SelectedProfile
+		page.SelectedProfile = nil
+		Gathering:DeleteProfile(profile)
+	end)
+	self:CreateProfileButton(RightWidgets, "Reset current profile", function()
+		Gathering:ResetProfile()
+	end)
+
+	self:SortWidgets(LeftWidgets)
+	self:SortWidgets(RightWidgets)
+end
+
 local IgnoreWindowOnMouseWheel = function(self, delta)
 	if (delta == 1) then
 		self.Offset = self.Offset - 1
@@ -1851,6 +2019,9 @@ function Gathering:CreateGUI()
 	local SettingsPage = self:AddPage(L["Settings"])
 	self:SetupSettingsPage(SettingsPage)
 
+	local ProfilesPage = self:AddPage("Profiles")
+	self:SetupProfilesPage(ProfilesPage)
+
 	local TrackingPage = self:AddPage(L["Tracking"])
 	self:SetupTrackingPage(TrackingPage)
 
@@ -1916,11 +2087,7 @@ function Gathering:PLAYER_ENTERING_WORLD()
 			GameTooltip:HookScript("OnTooltipSetItem", self.OnTooltipSetItem)
 		end]]
 
-		if (not GatheringSettings) then
-			GatheringSettings = {}
-		end
-
-		self.Settings = setmetatable(GatheringSettings, {__index = self.DefaultSettings})
+		self:InitializeProfiles()
 		self:CreateWindow()
 
 		self:UpdateHerbTracking(self.Settings["track-herbs"])
