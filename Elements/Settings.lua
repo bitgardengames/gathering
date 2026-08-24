@@ -33,7 +33,6 @@ Gathering.DefaultSettings = {
 	EnableSlotBar = true,
 	SlotBarTooltip = true,
 	SlotBarHeight = 6,
-	-- Threshold options
 }
 
 local function CopySettings(source)
@@ -81,7 +80,6 @@ function Gathering:GetProfileNames()
 
 	return Profiles
 end
-
 
 function Gathering:ApplyProfile()
 	if (not self.Text) then
