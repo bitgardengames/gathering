@@ -2161,7 +2161,7 @@ function Gathering:PLAYER_ENTERING_WORLD()
 		GatheringItemStats = nil
 	end
 
-	if (self.GameVersion < 90000 and not IsInInstance()) then
+	if (not self.IsMainline and not IsInInstance()) then
 		C_Timer.After(6, function()
 			ChatThrottleLib:SendAddonMessage("NORMAL", "GATHERING_VRSN", (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)("Gathering", "Version"), "YELL")
 		end)

@@ -4,7 +4,7 @@ local L = AddOn.L
 
 local LootMatch = "([^|]+)|cff%x+|H([^|]+)|h%[([^%]]+)%]|h|r[^%d]*(%d*)"
 
-if (Gathering.GameVersion > 100000) then -- The War Within+ uses different item quality color codes
+if Gathering.IsMainline then -- Mainline and Forever use the modern item quality color format
 	LootMatch = "([^|]+)|c[^|]+|H([^|]+)|h%[([^%]]+)%]|h|r[^%d]*(%d*)"
 end
 

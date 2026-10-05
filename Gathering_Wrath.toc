@@ -1,9 +1,9 @@
-## Interface: 20506
+## Interface: 38002
 ## Author: Hydra
 ## Version: 2.75
 ## Title: Gathering
 ## Notes: Track gathered items.
-## SavedVariables: GatheringSettings, GatheringProfiles, GatheringIgnore, GatheringStats
+## SavedVariables: GatheringMarketPrices, GatheringLastScan, GatheringSettings, GatheringProfiles, GatheringIgnore, GatheringStats
 ## IconTexture: Interface\Icons\Inv_misc_coin_02
 
 Libraries\LibStub.lua
@@ -26,6 +26,7 @@ Elements\Tools.lua
 Elements\Settings.lua
 Elements\Stats.lua
 Elements\Interface.lua
+Elements\MainlineScan.lua
 Elements\Commands.lua
 Elements\Loot.lua
 Elements\Gold.lua

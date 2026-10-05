@@ -91,7 +91,7 @@ end
 
 C_ChatInfo.RegisterAddonMessagePrefix(Prefix)
 
-if (Gathering.GameVersion < 90000) then
+if (not Gathering.IsMainline) then
 	Gathering:RegisterEvent("ZONE_CHANGED")
 	Gathering:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 end
