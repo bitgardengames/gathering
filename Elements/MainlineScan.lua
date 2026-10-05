@@ -6,23 +6,45 @@ local ReplicateItems = C_AuctionHouse.ReplicateItems
 local GetNumReplicateItems = C_AuctionHouse.GetNumReplicateItems
 local GetReplicateItemInfo = C_AuctionHouse.GetReplicateItemInfo
 
+GatheringMarketPrices = GatheringMarketPrices or {}
+Gathering.MarketPrices = GatheringMarketPrices
+
+local function StorePrice(self, index)
+	local _, _, Count, _, _, _, _, _, _, Buyout, _, _, _, _, _, _, ID = GetReplicateItemInfo(index)
+
+	if (not ID or not Count or Count <= 0 or not Buyout or Buyout <= 0) then
+		return
+	end
+
+	local PerUnit = Buyout / Count
+
+	if (not self.MarketPrices[ID] or PerUnit < self.MarketPrices[ID]) then
+		self.MarketPrices[ID] = PerUnit
+		GatheringMarketPrices[ID] = PerUnit
+	end
+end
+
 function Gathering:ScanButtonOnClick()
 	local TimeDiff = (GetTime() - (GatheringLastScan or 0))
+
+	if Gathering.ScanInProgress then
+		if (TimeDiff <= 900) then
+			return
+		end
+
+		-- Recover if the auction house never delivered results for an old scan.
+		Gathering.ScanInProgress = false
+		Gathering:UnregisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+	end
 
 	if (TimeDiff > 0) and (900 > TimeDiff) then -- 15 minute throttle
 		print(format(L["You must wait %s until you can scan again."], Gathering:FormatTime(900 - TimeDiff)))
 		return
 	end
 
-	if Gathering:IsEventRegistered("REPLICATE_ITEM_LIST_UPDATE") then -- Awaiting results already
-		if (TimeDiff > 900) then
-			self:UnregisterEvent("REPLICATE_ITEM_LIST_UPDATE")
-		else
-			return
-		end
-	end
-
 	Gathering:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+	Gathering.ScanInProgress = true
+	Gathering.ScanGeneration = (Gathering.ScanGeneration or 0) + 1
 
 	ReplicateItems()
 
@@ -42,40 +64,48 @@ function Gathering:AUCTION_HOUSE_SHOW()
 end
 
 function Gathering:REPLICATE_ITEM_LIST_UPDATE()
-	if (not GatheringMarketPrices) then
-		GatheringMarketPrices = {}
+	local PendingItems = 0
+	local ResultsReceived = false
+	local ScanGeneration = self.ScanGeneration
+
+	local function ItemLoaded()
+		if (ScanGeneration ~= self.ScanGeneration) then
+			return
+		end
+
+		PendingItems = PendingItems - 1
+
+		if (ResultsReceived and PendingItems == 0) then
+			self.ScanInProgress = false
+			print(L["|cffFFC44DGathering|r updated market prices."])
+		end
 	end
 
-	local Count, Buyout, ID, HasAllInfo, PerUnit, _
-
 	for i = 0, (GetNumReplicateItems() - 1) do
-		_, _, Count, _, _, _, _, _, _, Buyout, _, _, _, _, _, _, ID, HasAllInfo = GetReplicateItemInfo(i)
+		local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, ID, HasAllInfo = GetReplicateItemInfo(i)
 
 		if HasAllInfo then
-			self.MarketPrices[ID] = Buyout / Count
-			GatheringMarketPrices[ID] = self.MarketPrices[ID]
+			StorePrice(self, i)
 		elseif ID then
-			Item:CreateFromItemID(ID):ContinueOnItemLoad(function()
-				_, _, Count, _, _, _, _, _, _, Buyout, _, _, _, _, _, _, ID = GetReplicateItemInfo(i)
-				PerUnit = Buyout / Count
+			local Index = i
+			PendingItems = PendingItems + 1
 
-				if self.MarketPrices[ID] then
-					if (self.MarketPrices[ID] > PerUnit) then -- Collect lowest prices
-						self.MarketPrices[ID] = PerUnit
-						GatheringMarketPrices[ID] = self.MarketPrices[ID]
-					end
-				else
-					self.MarketPrices[ID] = PerUnit
-					GatheringMarketPrices[ID] = self.MarketPrices[ID]
+			Item:CreateFromItemID(ID):ContinueOnItemLoad(function()
+				if (ScanGeneration == self.ScanGeneration) then
+					StorePrice(self, Index)
+					ItemLoaded()
 				end
 			end)
 		end
 	end
 
 	self:UnregisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+	ResultsReceived = true
 
-	print(L["|cffFFC44DGathering|r updated market prices."])
+	if (PendingItems == 0) then
+		self.ScanInProgress = false
+		print(L["|cffFFC44DGathering|r updated market prices."])
+	end
 end
 
 Gathering:RegisterEvent("AUCTION_HOUSE_SHOW")
-Gathering:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")

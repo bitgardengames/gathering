@@ -86,6 +86,10 @@ function Gathering:GetPrice(link)
 		return TSM_API.GetCustomPriceValue("dbMarket", TSM_API.ToItemString(link))
 	elseif self.HasAuctionator then
 		return Auctionator.API.v1.GetAuctionPriceByItemLink("Gathering", link)
+	elseif self.MarketPrices then
+		local ID = tonumber(match(link or "", "item:(%d+)"))
+
+		return ID and self.MarketPrices[ID]
 	end
 end
 
@@ -97,17 +101,15 @@ function Gathering:GetTrashValue()
 			local Link = GetContainerItemLink(Bag, Slot)
 
 			if Link then
-				local Quality = select(3, GetItemInfo(Link)) -- Just list out the arguments as dummies and save the 2 select calls
-				local VendorPrice = select(11, GetItemInfo(Link))
-				local Count = GetContainerItemInfo(Bag, Slot).stackCount or 1
-				local TotalPrice = VendorPrice
+				local _, _, Quality, _, _, _, _, _, _, _, VendorPrice = GetItemInfo(Link)
+				local ItemInfo, Count = GetContainerItemInfo(Bag, Slot)
 
-				if ((VendorPrice and (VendorPrice > 0)) and Count) then
-					TotalPrice = VendorPrice * Count
+				if C_Container then
+					Count = ItemInfo and ItemInfo.stackCount
 				end
 
-				if ((Quality and Quality < 1) and TotalPrice > 0) then
-					Profit = Profit + TotalPrice
+				if (Quality and Quality < 1 and VendorPrice and VendorPrice > 0) then
+					Profit = Profit + (VendorPrice * (Count or 1))
 				end
 			end
 		end
