@@ -20,7 +20,6 @@ local function StorePrice(self, index)
 
 	if (not self.MarketPrices[ID] or PerUnit < self.MarketPrices[ID]) then
 		self.MarketPrices[ID] = PerUnit
-		GatheringMarketPrices[ID] = PerUnit
 	end
 end
 

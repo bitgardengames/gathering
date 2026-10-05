@@ -4,18 +4,57 @@ local L = AddOn.L
 
 local GetItemInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
 local GetContainerNumSlots = C_Container and C_Container.GetContainerNumSlots or GetContainerNumSlots
-local GetContainerItemLink = C_Container and C_Container.GetContainerItemLink or GetContainerItemLink
 local GetContainerItemID = C_Container and C_Container.GetContainerItemID or GetContainerItemID
-local GetContainerItemInfo = GetContainerItemInfo
+local GetContainerItemCount
 
 if C_Container then
-    GetContainerItemInfo = function(bag, slot)
-        local info = C_Container.GetContainerItemInfo(bag, slot)
+	GetContainerItemCount = function(bag, slot)
+		local info = C_Container.GetContainerItemInfo(bag, slot)
 
-        if info then
-            return info.iconFileID, info.stackCount
-        end
-    end
+		return info and info.stackCount
+	end
+else
+	GetContainerItemCount = function(bag, slot)
+		local _, count = GetContainerItemInfo(bag, slot)
+
+		return count
+	end
+end
+
+local function RecordLoot(self, ID, Quantity, SubType, BindType)
+	if (BindType and BindType ~= 0 and self.Settings["ignore-bop"]) then
+		return false
+	end
+
+	local GatheredByType = self.Gathered[SubType]
+
+	if (not GatheredByType) then
+		GatheredByType = {}
+		self.Gathered[SubType] = GatheredByType
+	end
+
+	local Now = GetTime()
+	local Info = GatheredByType[ID]
+
+	if (not Info) then
+		Info = {Initial = Now}
+		GatheredByType[ID] = Info
+	end
+
+	Info.Collected = (Info.Collected or 0) + Quantity
+	Info.Last = Now
+
+	self.TotalGathered = self.TotalGathered + Quantity
+
+	if (self.Settings.DisplayMode == "TOTAL") then
+		self.Text:SetFormattedText(L["Total: %s"], self.TotalGathered)
+	end
+
+	if (not self:GetScript("OnUpdate")) then
+		self:StartTimer()
+	end
+
+	return true
 end
 
 function Gathering:BAG_UPDATE_DELAYED()
@@ -25,79 +64,37 @@ function Gathering:BAG_UPDATE_DELAYED()
 		return
 	end
 
-	local Results = {}
-	local ID, Texture, Count, ClassID, SubClassID
+	local ID, Count
+	local Updated = false
 
 	for Bag = 0, NUM_BAG_SLOTS do
 		for Slot = 1, GetContainerNumSlots(Bag) do
 			ID = GetContainerItemID(Bag, Slot)
-			Texture, Count = GetContainerItemInfo(Bag, Slot)
 
 			if ID then
-				ClassID, SubClassID = select(12, GetItemInfo(ID))
+				local _, _, _, _, _, _, SubType, _, _, _, _, ClassID, SubClassID, BindType = GetItemInfo(ID)
 
 				if (self.TrackedItemTypes[ClassID] and self.TrackedItemTypes[ClassID][SubClassID]) then
-					if self.BagResults[Bag][Slot] then
-						if (Count > self.BagResults[Bag][Slot][2]) then
-							local Change = Count - self.BagResults[Bag][Slot][2]
+					Count = GetContainerItemCount(Bag, Slot)
 
-							tinsert(Results, {ID, Change})
-						end
-					else
-						tinsert(Results, {ID, Count}) -- We just started a stack, and Count is the total of the new item
+					local Previous = self.BagResults[Bag][Slot]
+					local PreviousCount = Previous and Previous[1] == ID and Previous[2] or 0
+					local Change = Count and Count - PreviousCount or 0
+
+					if (Change > 0) then
+						Updated = RecordLoot(self, ID, Change, SubType, BindType) or Updated
 					end
 				end
 			end
 		end
 	end
 
-	if (#Results == 0) then
-		self.BagResults = nil
-
-		return
-	end
-
-	for i = 1, #Results do
-		local ID = Results[i][1]
-		local Quantity = Results[i][2]
-		local Type, SubType, _, _, _, _, ClassID, SubClassID, BindType = select(6, GetItemInfo(ID))
-
-		if (BindType and ((BindType ~= 0) and self.Settings["ignore-bop"])) then
-			return
-		end
-
-		if (not self.Gathered[SubType]) then
-			self.Gathered[SubType] = {}
-		end
-
-		local Now = GetTime()
-
-		if (not self.Gathered[SubType][ID]) then
-			self.Gathered[SubType][ID] = {Initial = Now}
-		end
-
-		local Info = self.Gathered[SubType][ID]
-
-		Info.Collected = (Info.Collected or 0) + Quantity
-		Info.Last = Now
-
-		self.TotalGathered = self.TotalGathered + Quantity -- For gathered/hr stat
-
-		if (self.Settings.DisplayMode == "TOTAL") then
-			self.Text:SetFormattedText(L["Total: %s"], self.TotalGathered)
-		end
-
-		if (not self:GetScript("OnUpdate")) then
-			self:StartTimer()
-		end
-
-		if self.MouseIsOver then
-			self:OnLeave()
-			self:OnEnter()
-		end
-	end
-
 	self.BagResults = nil
+
+	if (Updated and self.MouseIsOver) then
+		self:OnLeave()
+		self:OnEnter()
+	end
 end
 
 function Gathering:UNIT_SPELLCAST_CHANNEL_START(unit, guid, id)
@@ -111,7 +108,7 @@ function Gathering:UNIT_SPELLCAST_CHANNEL_START(unit, guid, id)
 
 	self.BagResults = {}
 
-	local ID, Texture, Count, ClassID, SubClassID
+	local ID, Count, ClassID, SubClassID
 
 	for Bag = 0, NUM_BAG_SLOTS do
 		if (not self.BagResults[Bag]) then
@@ -122,7 +119,7 @@ function Gathering:UNIT_SPELLCAST_CHANNEL_START(unit, guid, id)
 			ID = GetContainerItemID(Bag, Slot)
 
 			if ID then
-				Texture, Count = GetContainerItemInfo(Bag, Slot)
+				Count = GetContainerItemCount(Bag, Slot)
 				ClassID, SubClassID = select(12, GetItemInfo(ID))
 
 				if (self.TrackedItemTypes[ClassID] and self.TrackedItemTypes[ClassID][SubClassID]) then
